@@ -1,4 +1,4 @@
-open Compilers.Lexers.Recogniser.BasicRecogniser
+open Compilers.Lexers.Recogniser
 open Printf
 
 let%expect_test _ =

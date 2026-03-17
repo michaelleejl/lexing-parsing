@@ -1,0 +1,1 @@
+val recognise : string -> bool

@@ -43,10 +43,6 @@ and ast =
   | Let of fparam * ast * ast
   | LetRec of fparam * ast * ast
 
-module type Recogniser = sig
-  val recognise : string -> bool
-end
-
 module type Lexer = sig
   exception LexFailure
 
