@@ -23,6 +23,7 @@
   (ocaml (>= 5.3.0))
   fmt
   base
+  ppx_expect
   
   (utop :with-dev-setup)
   (ocamlformat :with-dev-setup)
