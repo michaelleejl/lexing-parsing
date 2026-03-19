@@ -135,17 +135,23 @@ let epsilon_step d q =
   try CharOptMap.find None (d q) 
   with Not_found -> StateSet.empty
 
+let epsilon_steps d qs =
+  StateSet.fold (fun q -> fun acc -> StateSet.union acc (epsilon_step d q)) qs qs 
+
+let rec epsilon_closure d qs = 
+  let qs' = epsilon_steps d qs in 
+  if qs' = qs then qs else epsilon_closure d qs' 
+
 let char_step d q c = 
   try CharOptMap.find (Some c) (d q) 
   with Not_found -> StateSet.empty
 
 let step d qs c = 
-  let curr_states = 
-    StateSet.fold (fun q -> fun acc -> StateSet.union acc (epsilon_step d q)) qs qs in 
+  let curr_states = epsilon_closure d qs  in 
   StateSet.fold (fun q -> fun acc -> StateSet.union acc (char_step d q c)) curr_states StateSet.empty
 
 let accept n s = 
   let cs = Base.String.to_list s in 
   let es = List.fold_left (step n.d) (StateSet.singleton n.q0) cs in 
-  let end_states = StateSet.fold (fun q -> fun acc -> StateSet.union acc (epsilon_step (n.d) q)) es es in 
+  let end_states = epsilon_closure (n.d) es in 
   StateSet.fold (fun q -> fun acc -> StateSet.mem q n.f || acc) end_states false
