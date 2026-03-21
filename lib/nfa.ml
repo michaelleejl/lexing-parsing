@@ -146,6 +146,9 @@ let rec epsilon_closure n qs =
   let qs' = epsilon_steps n.next qs in
   if StateSet.equal qs' qs then qs else epsilon_closure n qs'
 
+let initialise n = 
+  epsilon_closure n (StateSet.singleton n.initial)
+
 let char_step n q c =
   try CharOptMap.find (Some c) (n.next q) with Not_found -> StateSet.empty
 
@@ -157,6 +160,5 @@ let step n qs c =
 
 let accept n s =
   let cs = Base.String.to_list s in
-  let initials = epsilon_closure n (StateSet.singleton n.initial) in 
-  let es = List.fold_left (step n) initials cs in
+  let es = List.fold_left (step n) (initialise n) cs in
   StateSet.fold (fun q -> fun acc -> StateSet.mem q n.finals || acc) es false

@@ -17,5 +17,5 @@ val seq : nfa -> nfa -> nfa
 val kleene : nfa -> nfa
 val accept : nfa -> string -> bool
 
-val epsilon_closure : nfa -> state_set -> state_set
+val initialise : nfa -> state_set
 val step: nfa -> state_set -> char -> state_set
