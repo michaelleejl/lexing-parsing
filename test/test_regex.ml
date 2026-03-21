@@ -3,13 +3,13 @@ open Compilers.Regex
 open Printf
 
 let r = "[a-bd-f]|c*g"
-let n = compile (parse r) 
+let n = compile (parse r)
 
 let%expect_test _ =
   printf "%b" (accept n "");
-  [%expect {| false |}] 
+  [%expect {| false |}]
 
-  let%expect_test _ =
+let%expect_test _ =
   printf "%b" (accept n "b");
   [%expect {| true |}]
 

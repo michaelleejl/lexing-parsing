@@ -3,14 +3,11 @@ open Compilers.Intfs
 open Compilers.Mlot
 open Printf
 open Compilers.Mlot.Mlot_Token
-
-open Combinator(Mlot)
+open Combinator (Mlot)
 
 let ident_m = Matcher.(alphabetic >& ~*alphanumeric)
 let literal_m = Matcher.(~?(from_str "-") >& ~+numeric)
-
-let ident =
-  promote ident_m (fun cs -> IDENT (cs |> Base.String.of_list))
+let ident = promote ident_m (fun cs -> IDENT (cs |> Base.String.of_list))
 
 let literal =
   promote literal_m (fun cs ->
@@ -39,11 +36,8 @@ let to_lexer xs =
   Base.List.fold xs ~init:empty ~f:(fun acc ->
       fun (s, to_token) -> acc >>| promote (Matcher.from_str s) to_token)
 
-let tokens =
-  to_lexer keywords >>| to_lexer operators >>| ident >>| literal
-
-let mlot_lexer = from_tokens tokens 
-
+let tokens = to_lexer keywords >>| to_lexer operators >>| ident >>| literal
+let mlot_lexer = from_tokens tokens
 let print_token = fun x -> printf "%s ; " (Mlot_Token.to_str x)
 
 let%expect_test _ =

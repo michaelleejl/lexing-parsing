@@ -1,8 +1,8 @@
 open Intfs
 open Intfs.Language
 
-module Recogniser = struct 
-  type recogniser = char list -> char list outcome 
+module Recogniser = struct
+  type recogniser = char list -> char list outcome
 
   let char_recogniser f cs =
     match cs with
@@ -14,26 +14,22 @@ module Recogniser = struct
   let alphanumeric = char_recogniser Base.Char.is_alphanum
   let whitespace = char_recogniser Base.Char.is_whitespace
   let chr x = char_recogniser (Base.Char.equal x)
-  
   let empty _ = Failure
   let epsilon cs = Success cs
-  
+
   let seq (r1 : recogniser) (r2 : recogniser) cs =
     match r1 cs with Failure -> Failure | Success cs -> r2 cs
-  
+
   let alt (r1 : recogniser) (r2 : recogniser) cs =
     match (r1 cs, r2 cs) with
     | Failure, Failure -> Failure
     | Success xs, Failure -> Success xs
     | Failure, Success ys -> Success ys
     | Success xs, Success ys ->
-        if List.length xs <= List.length ys then Success xs
-        else Success ys
-  
+        if List.length xs <= List.length ys then Success xs else Success ys
+
   let rec kleene (r : recogniser) cs =
-    match r cs with
-    | Failure -> Success cs
-    | Success xs -> kleene r xs
+    match r cs with Failure -> Success cs | Success xs -> kleene r xs
 
   let ( >& ) = seq
   let ( >| ) = alt
@@ -51,30 +47,29 @@ module Recogniser = struct
     Base.List.fold xs ~init:empty ~f:(fun acc -> fun x -> acc >| from_str x)
 
   let recognise r s =
-  match r (Base.String.to_list s) with
-  | Success [] -> true
-  | _ -> false
-end 
+    match r (Base.String.to_list s) with Success [] -> true | _ -> false
+end
 
-module Combinator(Lang: L) = struct 
-  open Base 
-  module Matcher = struct 
+module Combinator (Lang : L) = struct
+  open Base
+
+  module Matcher = struct
     type matcher_state = { matched : char list; rest : char list }
     type matcher = char list -> matcher_state outcome
 
     let char_matcher f cs =
       match cs with
       | [] -> Failure
-      | c :: cs -> if f c then Success { matched = [ c ]; rest = cs } else Failure
+      | c :: cs ->
+          if f c then Success { matched = [ c ]; rest = cs } else Failure
 
     let alphabetic = char_matcher Char.is_alpha
     let numeric = char_matcher Char.is_digit
     let alphanumeric = char_matcher Char.is_alphanum
-    let whitespace = char_matcher (Char.is_whitespace)
+    let whitespace = char_matcher Char.is_whitespace
     let chr x = char_matcher (Char.equal x)
-
     let epsilon s = Success { matched = []; rest = s }
-    let empty _ = Failure 
+    let empty _ = Failure
 
     let seq m1 m2 cs =
       match m1 cs with
@@ -115,24 +110,21 @@ module Combinator(Lang: L) = struct
     let from_str s =
       let cs' = String.to_list s in
       List.fold cs' ~init:epsilon ~f:(fun acc -> fun x -> acc >& chr x)
-  end 
+  end
 
   exception LexFailure
 
   type token = Lang.token
-
   type lex_state = { lexed : token list; rest : char list }
+  type lexer = lex_state -> lex_state outcome
+  type matcher = Matcher.matcher
 
-  type lexer = lex_state -> lex_state outcome 
-
-  type matcher = Matcher.matcher 
-
-  let promote (m: matcher) to_token { lexed; rest } =
+  let promote (m : matcher) to_token { lexed; rest } =
     match m rest with
     | Failure -> Failure
-    | Success { matched; rest } -> 
-      let t = to_token matched in 
-      Success { lexed = t :: lexed; rest }
+    | Success { matched; rest } ->
+        let t = to_token matched in
+        Success { lexed = t :: lexed; rest }
 
   let empty _ = Failure
   let epsilon s = Success s
@@ -157,12 +149,12 @@ module Combinator(Lang: L) = struct
   let ( ~~+ ) = plus
   let maybe l = l >>| epsilon
   let ( ~~? ) = maybe
-  
+
   let whitespace { lexed; rest } =
     match Matcher.whitespace rest with
     | Failure -> Failure
-    | Success { matched; rest } -> Success { lexed = lexed; rest }
-          
+    | Success { matched; rest } -> Success { lexed; rest }
+
   let from_tokens ts = epsilon >>| ts >>& ~~*(whitespace >>& ts)
 
   let lex l s =
@@ -170,10 +162,6 @@ module Combinator(Lang: L) = struct
     match l { lexed = []; rest = cs } with
     | Success { lexed; rest = [] } -> List.rev lexed
     | _ -> raise LexFailure
+end
 
-end 
-
-
-module Generator(Lang: L) = struct 
-
-end 
+module Generator (Lang : L) = struct end

@@ -7,14 +7,9 @@ let ident = alphabetic >& ~*alphanumeric
 let literal = ~?(from_str "-") >& ~+numeric
 
 let recognise_one =
-     from_str_list keywords
-  >| from_str_list operators 
-  >| ident
-  >| literal
+  from_str_list keywords >| from_str_list operators >| ident >| literal
 
-let mlot_recogniser =
-     epsilon 
-  >| recognise_one >& ~*(whitespace >& recognise_one)
+let mlot_recogniser = epsilon >| recognise_one >& ~*(whitespace >& recognise_one)
 
 let%expect_test _ =
   printf "%b" (recognise mlot_recogniser "fun");
