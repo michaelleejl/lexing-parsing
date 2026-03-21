@@ -1,9 +1,9 @@
-open Compilers.Lexers
+open Compilers.Lexing.Combinators
 open Compilers.Intfs
 open Compilers.Mlot
 open Printf
 open Compilers.Mlot.Mlot_Token
-open Combinator (Mlot)
+open Lexer (Mlot)
 
 let ident_m = Matcher.(alphabetic >& ~*alphanumeric)
 let literal_m = Matcher.(~?(from_str "-") >& ~+numeric)

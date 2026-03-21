@@ -37,7 +37,7 @@ module type Matcher = sig
 end
   *)
 
-module Combinator : (Lang : L) -> sig
+module Lexer : (Lang : L) -> sig
   module Matcher : sig
     type matcher_state = { matched : char list; rest : char list }
     type matcher = char list -> matcher_state outcome

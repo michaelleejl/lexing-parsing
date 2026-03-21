@@ -50,7 +50,7 @@ module Recogniser = struct
     match r (Base.String.to_list s) with Success [] -> true | _ -> false
 end
 
-module Combinator (Lang : L) = struct
+module Lexer (Lang : L) = struct
   open Base
 
   module Matcher = struct
@@ -163,5 +163,3 @@ module Combinator (Lang : L) = struct
     | Success { lexed; rest = [] } -> List.rev lexed
     | _ -> raise LexFailure
 end
-
-module Generator (Lang : L) = struct end
