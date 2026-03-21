@@ -1,4 +1,9 @@
-type nfa
+type state = int 
+module StateSet: Set.S with type elt = state 
+module CharOptMap : Map.S with type key = char option
+type transition = StateSet.t CharOptMap.t
+
+type nfa  = { q0 : state; f : StateSet.t; d : state -> transition }
 
 val empty : nfa
 val epsilon : nfa
