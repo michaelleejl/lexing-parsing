@@ -15,45 +15,45 @@ type transition = state_set CharOptMap.t
 
 let merge _ x y = Some (StateSet.union x y)
 
-type nfa = { q0 : state; f : state_set; d : state -> transition }
+type nfa = { initial : state; finals : state_set; next : state -> transition }
 
 let rn_shift ?(m = 1) n =
   {
-    q0 = n.q0 + m;
-    f = StateSet.map (( + ) m) n.f;
-    d =
+    initial = n.initial + m;
+    finals = StateSet.map (( + ) m) n.finals;
+    next =
       (fun s ->
-        CharOptMap.map (fun v -> StateSet.map (fun x -> x + m) v) (n.d (s - m)));
+        CharOptMap.map (fun v -> StateSet.map (fun x -> x + m) v) (n.next (s - m)));
   }
 
 let rn_even n =
   {
-    q0 = n.q0 * 2;
-    f = StateSet.map (fun s -> s * 2) n.f;
-    d =
+    initial = n.initial * 2;
+    finals = StateSet.map (fun s -> s * 2) n.finals;
+    next =
       (fun s ->
-        CharOptMap.map (fun v -> StateSet.map (fun x -> x * 2) v) (n.d (s / 2)));
+        CharOptMap.map (fun v -> StateSet.map (fun x -> x * 2) v) (n.next (s / 2)));
   }
 
 let rn_odd n =
   {
-    q0 = (n.q0 * 2) + 1;
-    f = StateSet.map (fun s -> (s * 2) + 1) n.f;
-    d =
+    initial = (n.initial * 2) + 1;
+    finals = StateSet.map (fun s -> (s * 2) + 1) n.finals;
+    next =
       (fun s ->
         CharOptMap.map
           (fun v -> StateSet.map (fun x -> (x * 2) + 1) v)
-          (n.d ((s - 1) / 2)));
+          (n.next ((s - 1) / 2)));
   }
 
 let empty =
-  { q0 = 0; f = StateSet.singleton 1; d = (fun _ -> CharOptMap.empty) }
+  { initial = 0; finals = StateSet.singleton 1; next = (fun _ -> CharOptMap.empty) }
 
 let epsilon =
   {
-    q0 = 0;
-    f = StateSet.singleton 1;
-    d =
+    initial = 0;
+    finals = StateSet.singleton 1;
+    next =
       (fun s ->
         if s = 0 then CharOptMap.singleton None (StateSet.singleton 1)
         else CharOptMap.empty);
@@ -61,9 +61,9 @@ let epsilon =
 
 let one_of cs =
   {
-    q0 = 0;
-    f = StateSet.singleton 1;
-    d =
+    initial = 0;
+    finals = StateSet.singleton 1;
+    next =
       (fun s ->
         if s = 0 then
           CharOptMap.of_list
@@ -74,77 +74,77 @@ let one_of cs =
 let alt n0 n1 =
   let n0' = rn_even (rn_shift ~m:2 n0) in
   let n1' = rn_odd (rn_shift ~m:2 n1) in
-  let initials = StateSet.of_list [ n0'.q0; n1'.q0 ] in
-  let finals = StateSet.union n0'.f n1'.f in
-  let d' = fun s -> if s mod 2 = 0 then n0'.d s else n1'.d s in
-  let d =
+  let initials = StateSet.of_list [ n0'.initial; n1'.initial ] in
+  let finals = StateSet.union n0'.finals n1'.finals in
+  let next' = fun s -> if s mod 2 = 0 then n0'.next s else n1'.next s in
+  let next =
    fun s ->
     if s = 0 then CharOptMap.singleton None initials
     else
-      let m = d' s in
+      let m = next' s in
       if StateSet.mem s finals then
         CharOptMap.union merge m
           (CharOptMap.singleton None (StateSet.singleton 1))
       else m
   in
-  { q0 = 0; f = StateSet.singleton 1; d }
+  { initial = 0; finals = StateSet.singleton 1; next }
 
 let seq n0 n1 =
   let n0' = rn_even n0 in
   let n1' = rn_odd n1 in
   {
-    q0 = n0'.q0;
-    f = n1'.f;
-    d =
+    initial = n0'.initial;
+    finals = n1'.finals;
+    next =
       (fun s ->
-        let m = if s mod 2 = 0 then n0'.d s else n1'.d s in
-        if StateSet.mem s n0'.f then
+        let m = if s mod 2 = 0 then n0'.next s else n1'.next s in
+        if StateSet.mem s n0'.finals then
           CharOptMap.union merge m
-            (CharOptMap.singleton None (StateSet.singleton n1'.q0))
+            (CharOptMap.singleton None (StateSet.singleton n1'.initial))
         else m);
   }
 
 let kleene n =
   let n' = rn_shift ~m:2 n in
   {
-    q0 = 0;
-    f = StateSet.singleton 1;
-    d =
+    initial = 0;
+    finals = StateSet.singleton 1;
+    next =
       (fun s ->
-        if s = 0 then CharOptMap.singleton None (StateSet.of_list [ n'.q0; 1 ])
+        if s = 0 then CharOptMap.singleton None (StateSet.of_list [ n'.initial; 1 ])
         else if s = 1 then CharOptMap.singleton None (StateSet.singleton 0)
         else
-          let m = n'.d s in
-          if StateSet.mem s n'.f then
+          let m = n'.next s in
+          if StateSet.mem s n'.finals then
             CharOptMap.union merge
-              (CharOptMap.singleton None (StateSet.of_list [ n'.q0; 1 ]))
+              (CharOptMap.singleton None (StateSet.of_list [ n'.initial; 1 ]))
               m
           else m);
   }
 
-let epsilon_step d q =
-  try CharOptMap.find None (d q) with Not_found -> StateSet.empty
+let epsilon_step next q =
+  try CharOptMap.find None (next q) with Not_found -> StateSet.empty
 
-let epsilon_steps d qs =
+let epsilon_steps next qs =
   StateSet.fold
-    (fun q -> fun acc -> StateSet.union acc (epsilon_step d q))
+    (fun q -> fun acc -> StateSet.union acc (epsilon_step next q))
     qs qs
 
-let rec epsilon_closure d qs =
-  let qs' = epsilon_steps d qs in
-  if StateSet.equal qs' qs then qs else epsilon_closure d qs'
+let rec epsilon_closure next qs =
+  let qs' = epsilon_steps next qs in
+  if StateSet.equal qs' qs then qs else epsilon_closure next qs'
 
-let char_step d q c =
-  try CharOptMap.find (Some c) (d q) with Not_found -> StateSet.empty
+let char_step next q c =
+  try CharOptMap.find (Some c) (next q) with Not_found -> StateSet.empty
 
-let step d qs c =
-  let curr_states = epsilon_closure d qs in
+let step next qs c =
+  let curr_states = epsilon_closure next qs in
   StateSet.fold
-    (fun q -> fun acc -> StateSet.union acc (char_step d q c))
+    (fun q -> fun acc -> StateSet.union acc (char_step next q c))
     curr_states StateSet.empty
 
 let accept n s =
   let cs = Base.String.to_list s in
-  let es = List.fold_left (step n.d) (StateSet.singleton n.q0) cs in
-  let end_states = epsilon_closure n.d es in
-  StateSet.fold (fun q -> fun acc -> StateSet.mem q n.f || acc) end_states false
+  let es = List.fold_left (step n.next) (StateSet.singleton n.initial) cs in
+  let end_states = epsilon_closure n.next es in
+  StateSet.fold (fun q -> fun acc -> StateSet.mem q n.finals || acc) end_states false
