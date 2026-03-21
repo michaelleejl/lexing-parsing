@@ -22,10 +22,13 @@ type t = C.t rgx
 let empty = Empty
 let epsilon = Epsilon
 let chr c = Char (C.singleton c)
-let str s = List.fold_right (fun c -> fun acc -> Seq(Char (C.singleton c), acc)) 
-                            (Base.String.to_list s)
-                            (Epsilon)
-let chrs cs = Char cs 
+
+let str s =
+  List.fold_right
+    (fun c -> fun acc -> Seq (Char (C.singleton c), acc))
+    (Base.String.to_list s) Epsilon
+
+let chrs cs = Char cs
 
 let alt r1 r2 =
   match (r1, r2) with
@@ -103,7 +106,7 @@ module Parse = struct
     | Any
     | Bracketed of Bracket.t
 
-  let whitespace = C.of_list (Char.[chr 32; chr 12; chr 10; chr 13; chr 9]) 
+  let whitespace = C.of_list Char.[ chr 32; chr 12; chr 10; chr 13; chr 9 ]
 
   let parse_bracketed s =
     match s with
@@ -125,9 +128,9 @@ module Parse = struct
     | '[' :: rest -> Some (parse_bracketed rest)
     | [] | (')' | '|' | '*' | '+' | '?') :: _ -> None
     | '.' :: cs -> Some (Any, cs)
-    | '\\'::'s'::cs -> Some(Char(whitespace), cs)
-    | '\\'::'+'::cs -> Some(Char(C.singleton '+'), cs)
-    | '\\'::c::cs -> raise Failure
+    | '\\' :: 's' :: cs -> Some (Char whitespace, cs)
+    | '\\' :: '+' :: cs -> Some (Char (C.singleton '+'), cs)
+    | '\\' :: c :: cs -> raise Failure
     | c :: cs -> Some (Char (C.singleton c), cs)
 
   and parse_suffixed s =
@@ -152,14 +155,13 @@ module Parse = struct
         (Alt (r, r'), rest')
     | r, rest -> (r, rest)
 
-  let parse cs =
-    match parse_alt cs with r, [] -> r | r, _ -> raise Failure
+  let parse cs = match parse_alt cs with r, [] -> r | r, _ -> raise Failure
 
-  let rec to_alt = function 
+  let rec to_alt = function
     | [] -> []
-    | [x] -> [x]
-    | x::y::xs -> x::'|'::y::'|'::(to_alt xs)
-    
+    | [ x ] -> [ x ]
+    | x :: y :: xs -> x :: '|' :: y :: '|' :: to_alt xs
+
   let rec interpret = function
     | Empty -> empty
     | Epsilon -> epsilon
