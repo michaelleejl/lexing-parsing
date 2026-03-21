@@ -5,6 +5,7 @@ type t
 val empty : t
 val epsilon : t
 val chr : char -> t
+val str: string -> t
 val alt : t -> t -> t
 val seq : t -> t -> t
 val kleene : t -> t

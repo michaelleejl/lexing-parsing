@@ -22,6 +22,9 @@ type t = C.t rgx
 let empty = Empty
 let epsilon = Epsilon
 let chr c = Char (C.singleton c)
+let str s = List.fold_right (fun c -> fun acc -> Seq(Char (C.singleton c), acc)) 
+                            (Base.String.to_list s)
+                            (Epsilon)
 let chrs cs = Char cs 
 
 let alt r1 r2 =
