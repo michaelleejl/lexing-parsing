@@ -36,11 +36,51 @@ let range_ l h =
 
 let range l h = Char (range_ l h)
 
-let any = Char (range_ 0 255)
+let any_ = range_ 0 255
+let any = Char any_
 
 module Parse = struct 
 
   exception Failure 
+
+  module Bracket = struct 
+
+    type elt = Char of char | Range of char * char 
+    type t = { negated:bool; elements: elt list }
+
+    let interpret {negated;elements} =
+      let cs = List.fold_right 
+          (function Char c-> C.add c 
+                  | Range (cl, ch) -> C.union (range_ (Char.code cl) (Char.code ch)))
+          elements C.empty in 
+      if negated 
+        then 
+          C.diff any_ cs 
+        else 
+          cs 
+      
+      let parse_element cs = match cs with 
+          | [] -> raise Failure 
+          | ']'::s -> None, s
+          | c::('-'::']'::_ as s) -> Some(Char(c)), s
+          | c::('-'::c'::s)       -> Some(Range(c, c')), s
+          | c::s -> Some(Char(c)), s
+      
+      let parse_initial cs = match cs with 
+          | [] -> raise Failure
+          | c::('-'::']'::_ as s) -> Some(Char(c)), s
+          | c::('-'::c'::s)       -> Some(Range(c, c')), s
+          | c::s -> Some(Char(c)), s
+
+      let parse cs = 
+        let rec loop elts s = 
+          match parse_element s with 
+            | None, s' -> List.rev elts, s'
+            | Some(e), s' -> loop (e::elts) s'
+        in match parse_initial cs with 
+          | None, s -> [], s
+          | Some(e), s -> loop [e] s 
+  end 
 
   type t = Empty 
          | Epsilon 
@@ -51,13 +91,22 @@ module Parse = struct
          | Plus of t 
          | Opt of t 
          | Any
+         | Bracketed of Bracket.t 
 
+  let parse_bracketed s = 
+    match s with 
+    | '^'::s' -> let elements, rest = Bracket.parse s' in 
+                 Bracketed {negated=true; elements}, rest 
+    | _::_ -> let elements, rest = Bracket.parse s in 
+                Bracketed {negated=false; elements}, rest
+    | [] -> raise Failure
   let rec parse_atom s = 
     match s with 
       | '('::rest -> begin match parse_alt rest with 
           | r, ')'::rest' -> Some(r, rest')
           | r, rest' -> None
         end 
+      | '['::rest -> Some(parse_bracketed rest)
       | []
       | (')'|'|'|'*'|'+'|'?')::_ -> None 
       | '.'::cs -> Some(Any, cs)
@@ -97,6 +146,7 @@ module Parse = struct
     | Plus r -> plus (interpret r)
     | Opt r -> opt (interpret r)
     | Any -> any 
+    | Bracketed b -> Char (Bracket.interpret b)
 
 end 
 
