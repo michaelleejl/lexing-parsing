@@ -1,6 +1,6 @@
-open Compilers.Lexing.Combinators
-open Compilers.Intfs
-open Compilers.Mlot
+open Lexparse.Lexing.Combinators
+open Lexparse.Intfs
+open Lexparse.Mlot
 open Mlot_Token
 open Printf
 open Lexer (Mlot)

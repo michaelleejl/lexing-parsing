@@ -1,6 +1,6 @@
 (lang dune 3.21)
 
-(name compilers)
+(name lexparse)
 
 (generate_opam_files true)
 
@@ -16,7 +16,7 @@
 (documentation https://url/to/documentation)
 
 (package
- (name compilers)
+ (name lexparse)
  (synopsis "A short synopsis")
  (description "A longer description")
  (depends 
@@ -24,7 +24,7 @@
   fmt
   base
   ppx_expect
-  
+
   (utop :with-dev-setup)
   (ocamlformat :with-dev-setup)
   (ocp-indent :with-dev-setup)

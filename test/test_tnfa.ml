@@ -1,7 +1,7 @@
-open Compilers.Intfs.Tags
-open Compilers.Tnfa
-open Compilers.Mlot
-open Compilers.Regex
+open Lexparse.Intfs.Tags
+open Lexparse.Tnfa
+open Lexparse.Mlot
+open Lexparse.Regex
 open Mlot_Token
 open Printf
 

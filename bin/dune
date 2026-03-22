@@ -1,4 +1,4 @@
 (executable
- (public_name compilers)
+ (public_name lexparse)
  (name main)
- (libraries compilers))
+ (libraries lexparse))

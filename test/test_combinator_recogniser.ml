@@ -1,4 +1,4 @@
-open Compilers.Lexing.Combinators.Recogniser
+open Lexparse.Lexing.Combinators.Recogniser
 open Printf
 
 let keywords = [ "let"; "rec"; "in"; "fun"; "true"; "false" ]

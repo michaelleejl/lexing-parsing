@@ -1,6 +1,6 @@
 (library
- (name test_compilers)
- (libraries compilers)
+ (name test_lexparse)
+ (libraries lexparse)
  (inline_tests)
  (preprocess
   (pps ppx_expect)))

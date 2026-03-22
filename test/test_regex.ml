@@ -1,5 +1,5 @@
-open Compilers.Nfa
-open Compilers.Regex
+open Lexparse.Nfa
+open Lexparse.Regex
 open Printf
 
 let r = "[a-bd-f]|c*g"

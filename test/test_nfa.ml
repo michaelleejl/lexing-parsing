@@ -1,4 +1,4 @@
-open Compilers.Nfa
+open Lexparse.Nfa
 open Printf
 
 let%expect_test _ =

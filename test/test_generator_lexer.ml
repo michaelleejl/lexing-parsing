@@ -1,6 +1,6 @@
-open Compilers.Intfs.Tags
-open Compilers.Lexing.Generators
-open Compilers.Mlot
+open Lexparse.Intfs.Tags
+open Lexparse.Lexing.Generators
+open Lexparse.Mlot
 open Mlot_Token
 open Printf
 
