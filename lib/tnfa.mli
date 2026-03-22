@@ -1,6 +1,6 @@
 open Intfs.Tags
 
-module Make (Tag : T) : sig
+module type S = sig 
   type state = Nfa.state
 
   module StateSet : Set.S with type elt = state
@@ -8,10 +8,12 @@ module Make (Tag : T) : sig
   module CharOptMap : Map.S with type key = char option
   module StateMap : Map.S with type key = state
 
+  type tag 
+
   type transition = StateSet.t CharOptMap.t
   type state_set = StateSet.t
   type char_set = CharSet.t
-  type tag_lookup = Tag.t StateMap.t
+  type tag_lookup = tag StateMap.t
 
   type t = {
     states : state_set;
@@ -22,11 +24,14 @@ module Make (Tag : T) : sig
     tagger : tag_lookup;
   }
 
-  val lift : Nfa.t -> Tag.t -> t
+  val lift : Nfa.t -> tag -> t
   val alt : t -> t -> t
   val initialise : t -> state_set
   val is_rejecting : t -> state_set -> bool
   val is_accepting : t -> state_set -> bool
   val step : t -> state_set -> char -> state_set
-  val emit_tag : t -> state_set -> Tag.t option
+  val emit_tag : t -> state_set -> tag option
+
 end
+
+module Make (Tag : T) : S with type tag = Tag.t
