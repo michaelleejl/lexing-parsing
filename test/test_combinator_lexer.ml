@@ -4,45 +4,34 @@ open Lexparse.Mlot
 open Mlot_Token
 open Printf
 open Lexer (Mlot)
-
-let ident_m = Matcher.(alphabetic >& ~*alphanumeric)
-let literal_m = Matcher.(~?(from_str "-") >& ~+numeric)
-let whitespace_m = Matcher.whitespace
-let ident = tag ident_m (fun cs -> Some (IDENT (cs |> Base.String.of_list)))
-let whitespace = tag whitespace_m (fun cs -> None)
-
-let literal =
-  tag literal_m (fun cs ->
-      Some (NUM (cs |> Base.String.of_list |> Base.Int.of_string)))
+open Lexparse.Regex
 
 let keywords =
-  [
-    ("let", fun _ -> Some LET);
-    ("rec", fun _ -> Some REC);
-    ("in", fun _ -> Some IN);
-    ("fun", fun _ -> Some FUN);
-    ("true", fun _ -> Some TRUE);
-    ("false", fun _ -> Some FALSE);
-  ]
+  interpret (r "let") (fun _ -> Some LET)
+  >>| interpret (r "rec") (fun _ -> Some REC)
+  >>| interpret (r "in") (fun _ -> Some IN)
+  >>| interpret (r "fun") (fun _ -> Some FUN)
+  >>| interpret (r "true") (fun _ -> Some TRUE)
+  >>| interpret (r "false") (fun _ -> Some FALSE)
 
 let operators =
-  [
-    ("=", fun _ -> Some EQUALS);
-    ("+", fun _ -> Some PLUS);
-    ("->", fun _ -> Some ARROW);
-    ("(", fun _ -> Some LPARAN);
-    (")", fun _ -> Some RPARAN);
-  ]
+  interpret (r "=") (fun _ -> Some EQUALS)
+  >>| interpret (r {|\+|}) (fun _ -> Some PLUS)
+  >>| interpret (r "->") (fun _ -> Some ARROW)
+  >>| interpret (r {|\(|}) (fun _ -> Some LPARAN)
+  >>| interpret (r {|\)|}) (fun _ -> Some RPARAN)
 
-let to_lexer xs =
-  Base.List.fold xs ~init:empty ~f:(fun acc ->
-      fun (s, to_token) -> acc >>| tag (Matcher.from_str s) to_token)
+let ident =
+  interpret (r "[a-zA-Z][a-zA-Z0-9]*") (fun cs ->
+      Some (IDENT (Base.String.of_list cs)))
 
-let tokens =
-  to_lexer keywords >>| to_lexer operators >>| ident >>| literal >>| whitespace
+let literal =
+  interpret (r "-?[0-9]+") (fun cs ->
+      Some (NUM (cs |> Base.String.of_list |> Base.Int.of_string)))
 
-let mlot_lexer = ~~*tokens
-let print_token = fun x -> printf "%s ; " (Mlot_Token.to_str x)
+let whitespace = interpret (r {|\s|}) (fun _ -> None)
+let mlot_lexer = keywords >>| operators >>| ident >>| literal >>| whitespace
+let print_token x = printf "%s ; " (Mlot_Token.to_str x)
 
 let%expect_test _ =
   List.iter print_token (lex mlot_lexer "fun");

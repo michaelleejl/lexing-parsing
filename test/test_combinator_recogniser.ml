@@ -1,3 +1,4 @@
+open Lexparse.Regex
 open Lexparse.Lexing.Combinators.Recogniser
 open Printf
 

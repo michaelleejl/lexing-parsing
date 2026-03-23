@@ -1,4 +1,5 @@
 open Lexparse.Lexing.Generators.Recogniser
+open Lexparse.Regex
 open Printf
 
 let keywords = r "let|rec|in|fun|true|false"

@@ -10,9 +10,8 @@ let rec compile_regex r =
   | Kleene r -> Nfa.kleene (compile_regex r)
 
 module Recogniser = struct
-  include Regex
-
-  type s = Dfa.t
+  type r = Regex.t
+  type t = Dfa.t
 
   let compile r = compile_regex r |> Dfa.determinise
   let recognise = Dfa.accept
@@ -23,27 +22,22 @@ open Intfs.Language
 open Intfs.Tags
 
 module Lexer (Lang : L) (Tag : T with type token = Lang.token) = struct
-  exception LexFailure of string
-
-  type token = Lang.token
-  type m = Regex.t
-
   module TaggedDfa = Tdfa.Make (Tag)
   module TaggedNfa = TaggedDfa.TaggedNfa
 
-  type tag_t = Tag.t
+  type token = Lang.token
+  type tag = Tag.t
+  type r = Regex.t
   type s = TaggedNfa.t
   type t = TaggedDfa.t
 
-  module Matcher = struct
-    include Regex
-  end
+  exception LexFailure of string
 
   open TaggedDfa
 
-  let tag matcher t = TaggedNfa.lift (compile_regex matcher) t
+  let compile matcher t = TaggedNfa.lift (compile_regex matcher) t
   let ( >>| ) = TaggedNfa.alt
-  let compile = determinise
+  let determinise = determinise
 
   type lexing_state = {
     state : state;

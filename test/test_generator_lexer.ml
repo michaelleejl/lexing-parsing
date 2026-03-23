@@ -44,28 +44,28 @@ module Tag = struct
 end
 
 open Lexer (Mlot) (Tag)
-open Matcher
+open Lexparse.Regex
 
 let keywords =
-  tag (r "let") T_LET
-  >>| tag (r "rec") T_REC
-  >>| tag (r "in") T_IN
-  >>| tag (r "fun") T_FUN
-  >>| tag (r "true") T_TRUE
-  >>| tag (r "false") T_FALSE
+  compile (r "let") T_LET
+  >>| compile (r "rec") T_REC
+  >>| compile (r "in") T_IN
+  >>| compile (r "fun") T_FUN
+  >>| compile (r "true") T_TRUE
+  >>| compile (r "false") T_FALSE
 
 let operators =
-  tag (r "=") T_EQUALS
-  >>| tag (r {|\+|}) T_PLUS
-  >>| tag (r "->") T_ARROW
-  >>| tag (r {|\(|}) T_LPARAN
-  >>| tag (r {|\)|}) T_RPARAN
+  compile (r "=") T_EQUALS
+  >>| compile (r {|\+|}) T_PLUS
+  >>| compile (r "->") T_ARROW
+  >>| compile (r {|\(|}) T_LPARAN
+  >>| compile (r {|\)|}) T_RPARAN
 
-let ident = tag (r "[a-zA-Z][a-zA-Z0-9]*") T_IDENT
-let literal = tag (r "-?[0-9]+") T_NUM
-let whitespace = tag (r {|\s|}) T_SKIP
+let ident = compile (r "[a-zA-Z][a-zA-Z0-9]*") T_IDENT
+let literal = compile (r "-?[0-9]+") T_NUM
+let whitespace = compile (r {|\s|}) T_SKIP
 let mlot_lexer_nfa = keywords >>| operators >>| ident >>| literal >>| whitespace
-let mlot_lexer = compile mlot_lexer_nfa
+let mlot_lexer = determinise mlot_lexer_nfa
 let print_token x = printf "%s ; " (Mlot_Token.to_str x)
 
 let%expect_test _ =
