@@ -1,15 +1,15 @@
 open Lexparse.Lexing.Combinators.Recogniser
 open Printf
 
-let keywords = [ "let"; "rec"; "in"; "fun"; "true"; "false" ]
-let operators = [ "="; "+"; "->"; "("; ")" ]
-let ident = alphabetic >& ~*alphanumeric
-let literal = ~?(from_str "-") >& ~+numeric
+let keywords = r "let|rec|in|fun|true|false"
+let operators = r {|=|\+|->|(|)|}
+let ident = r "[a-zA-Z][a-zA-Z0-9]*"
+let literal = r "-?[0-9]+"
+let whitespace = r {|\s|}
+let recognise_one = keywords >| operators >| ident >| literal
 
-let recognise_one =
-  from_str_list keywords >| from_str_list operators >| ident >| literal
-
-let mlot_recogniser = epsilon >| recognise_one >& ~*(whitespace >& recognise_one)
+let mlot_recogniser =
+  interpret (epsilon >| recognise_one >& ~*(whitespace >& recognise_one))
 
 let%expect_test _ =
   printf "%b" (recognise mlot_recogniser "fun");

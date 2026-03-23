@@ -15,8 +15,8 @@ module Recogniser : sig
   val ( ~* ) : t -> t
   val ( ~+ ) : t -> t
   val ( ~? ) : t -> t
-  val parse : string -> t
-  val generate : t -> s
+  val r : string -> t
+  val compile : t -> s
   val recognise : s -> string -> bool
 end
 
@@ -24,8 +24,10 @@ module Lexer (Lang : L) (Tag : T with type token = Lang.token) : sig
   type m
   type t
   type s
-  type tag = Tag.t
+  type tag_t = Tag.t
   type token = Lang.token
+
+  exception LexFailure of string
 
   module Matcher : sig
     val empty : m
@@ -37,11 +39,11 @@ module Lexer (Lang : L) (Tag : T with type token = Lang.token) : sig
     val ( ~* ) : m -> m
     val ( ~+ ) : m -> m
     val ( ~? ) : m -> m
-    val parse : string -> m
+    val r : string -> m
   end
 
-  val create : m -> tag -> s
+  val tag : m -> tag_t -> s
   val ( >>| ) : s -> s -> s
-  val determinise : s -> t
+  val compile : s -> t
   val lex : t -> string -> token list
 end

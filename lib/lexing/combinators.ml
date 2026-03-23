@@ -1,26 +1,21 @@
 open Intfs
 open Intfs.Language
+open Regex
 
 module Recogniser = struct
-  type recogniser = char list -> char list outcome
+  include Regex
 
-  let char_recogniser f cs =
-    match cs with
+  type s = char list -> char list outcome
+
+  let one_of cs = function
     | [] -> Failure
-    | c :: cs -> if f c then Success cs else Failure
+    | x :: xs -> if C.mem x cs then Success xs else Failure
 
-  let alphabetic = char_recogniser Base.Char.is_alpha
-  let numeric = char_recogniser Base.Char.is_digit
-  let alphanumeric = char_recogniser Base.Char.is_alphanum
-  let whitespace = char_recogniser Base.Char.is_whitespace
-  let chr x = char_recogniser (Base.Char.equal x)
-  let empty _ = Failure
-  let epsilon cs = Success cs
+  let emp _ = Failure
+  let eps cs = Success cs
+  let seq r1 r2 cs = match r1 cs with Failure -> Failure | Success cs -> r2 cs
 
-  let seq (r1 : recogniser) (r2 : recogniser) cs =
-    match r1 cs with Failure -> Failure | Success cs -> r2 cs
-
-  let alt (r1 : recogniser) (r2 : recogniser) cs =
+  let alt r1 r2 cs =
     match (r1 cs, r2 cs) with
     | Failure, Failure -> Failure
     | Success xs, Failure -> Success xs
@@ -28,23 +23,17 @@ module Recogniser = struct
     | Success xs, Success ys ->
         if List.length xs <= List.length ys then Success xs else Success ys
 
-  let rec kleene (r : recogniser) cs =
+  let rec kleene r cs =
     match r cs with Failure -> Success cs | Success xs -> kleene r xs
 
-  let ( >& ) = seq
-  let ( >| ) = alt
-  let ( ~* ) = kleene
-  let plus (r : recogniser) = r >& ~*r
-  let ( ~+ ) = plus
-  let maybe (r : recogniser) = r >| epsilon
-  let ( ~? ) = maybe
-
-  let from_str s =
-    let cs' = Base.String.to_list s in
-    Base.List.fold cs' ~init:epsilon ~f:(fun acc -> fun x -> acc >& chr x)
-
-  let from_str_list xs =
-    Base.List.fold xs ~init:empty ~f:(fun acc -> fun x -> acc >| from_str x)
+  let rec interpret r =
+    match r with
+    | Empty -> emp
+    | Epsilon -> eps
+    | Char cs -> one_of cs
+    | Alt (r1, r2) -> alt (interpret r1) (interpret r2)
+    | Seq (r1, r2) -> seq (interpret r1) (interpret r2)
+    | Kleene r -> kleene (interpret r)
 
   let recognise r s =
     match r (Base.String.to_list s) with Success [] -> true | _ -> false
@@ -120,7 +109,7 @@ module Lexer (Lang : L) = struct
   type lexer = lex_state -> lex_state outcome
   type matcher = Matcher.matcher
 
-  let promote (m : matcher) to_token { lexed; rest } =
+  let tag (m : matcher) to_token { lexed; rest } =
     match m rest with
     | Failure -> Failure
     | Success { matched; rest } -> (

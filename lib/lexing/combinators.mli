@@ -2,26 +2,29 @@ open Intfs
 open Intfs.Language
 
 module Recogniser : sig
-  type recogniser = char list -> char list outcome
+  type t
+  type s
 
-  val char_recogniser : (char -> bool) -> recogniser
-  val alphabetic : recogniser
-  val numeric : recogniser
-  val alphanumeric : recogniser
-  val whitespace : recogniser
-  val empty : recogniser
-  val epsilon : recogniser
-  val ( >& ) : recogniser -> recogniser -> recogniser
-  val ( >| ) : recogniser -> recogniser -> recogniser
-  val ( ~* ) : recogniser -> recogniser
-  val ( ~+ ) : recogniser -> recogniser
-  val ( ~? ) : recogniser -> recogniser
-  val from_str : string -> recogniser
-  val from_str_list : string list -> recogniser
-  val recognise : recogniser -> string -> bool
+  val empty : t
+  val epsilon : t
+  val chr : char -> t
+  val str : string -> t
+  val ( >| ) : t -> t -> t
+  val ( >& ) : t -> t -> t
+  val ( ~* ) : t -> t
+  val ( ~+ ) : t -> t
+  val ( ~? ) : t -> t
+  val r : string -> t
+  val interpret : t -> s
+  val recognise : s -> string -> bool
 end
 
 module Lexer : (Lang : L) -> sig
+  type token = Lang.token
+  type action = char list -> token option
+
+  exception LexFailure
+
   module Matcher : sig
     type matcher_state = { matched : char list; rest : char list }
     type matcher = char list -> matcher_state outcome
@@ -41,15 +44,11 @@ module Lexer : (Lang : L) -> sig
     val from_str : string -> matcher
   end
 
-  exception LexFailure
-
-  type token = Lang.token
-  type action = char list -> token option
   type matcher = Matcher.matcher
   type lex_state = { lexed : token list; rest : char list }
   type lexer = lex_state -> lex_state outcome
 
-  val promote : matcher -> action -> lexer
+  val tag : matcher -> action -> lexer
   val empty : lexer
   val epsilon : lexer
   val ( >>& ) : lexer -> lexer -> lexer

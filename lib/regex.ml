@@ -8,15 +8,6 @@ type 'c rgx =
   | Seq of 'c rgx * 'c rgx
   | Kleene of 'c rgx
 
-let rec compile r =
-  match r with
-  | Empty -> Nfa.empty
-  | Epsilon -> Nfa.epsilon
-  | Char cs -> Nfa.one_of (C.to_list cs)
-  | Alt (r1, r2) -> Nfa.alt (compile r1) (compile r2)
-  | Seq (r1, r2) -> Nfa.seq (compile r1) (compile r2)
-  | Kleene r -> Nfa.kleene (compile r)
-
 type t = C.t rgx
 
 let empty = Empty
@@ -39,6 +30,11 @@ let seq r1 r2 = Seq (r1, r2)
 let kleene r = Kleene r
 let plus r = Seq (r, Kleene r)
 let opt r = Alt (Epsilon, r)
+let ( >| ) = alt
+let ( >& ) = seq
+let ( ~* ) = kleene
+let ( ~+ ) = plus
+let ( ~? ) = opt
 
 let range_ l h =
   let rec loop i h acc =
@@ -177,4 +173,4 @@ module Parse = struct
     | Bracketed b -> Char (Bracket.interpret b)
 end
 
-let parse s = Parse.(interpret (parse (Base.String.to_list s)))
+let r s = Parse.(interpret (parse (Base.String.to_list s)))

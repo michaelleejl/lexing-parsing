@@ -1,20 +1,20 @@
-module Recogniser = struct
-  open Regex
+open Regex
 
-  type t = Regex.t
+let rec compile_regex r =
+  match r with
+  | Empty -> Nfa.empty
+  | Epsilon -> Nfa.epsilon
+  | Char cs -> Nfa.one_of (C.to_list cs)
+  | Alt (r1, r2) -> Nfa.alt (compile_regex r1) (compile_regex r2)
+  | Seq (r1, r2) -> Nfa.seq (compile_regex r1) (compile_regex r2)
+  | Kleene r -> Nfa.kleene (compile_regex r)
+
+module Recogniser = struct
+  include Regex
+
   type s = Dfa.t
 
-  let empty = empty
-  let epsilon = epsilon
-  let chr = chr
-  let str = str
-  let ( >| ) = alt
-  let ( >& ) = seq
-  let ( ~* ) = kleene
-  let ( ~+ ) = plus
-  let ( ~? ) = opt
-  let parse = parse
-  let generate r = Regex.compile r |> Dfa.determinise
+  let compile r = compile_regex r |> Dfa.determinise
   let recognise = Dfa.accept
 end
 
@@ -31,30 +31,19 @@ module Lexer (Lang : L) (Tag : T with type token = Lang.token) = struct
   module TaggedDfa = Tdfa.Make (Tag)
   module TaggedNfa = TaggedDfa.TaggedNfa
 
-  type tag = Tag.t
+  type tag_t = Tag.t
   type s = TaggedNfa.t
   type t = TaggedDfa.t
 
   module Matcher = struct
-    open Regex
-
-    let empty = empty
-    let epsilon = epsilon
-    let chr = chr
-    let str = str
-    let ( >| ) = alt
-    let ( >& ) = seq
-    let ( ~* ) = kleene
-    let ( ~+ ) = plus
-    let ( ~? ) = opt
-    let parse = parse
+    include Regex
   end
 
   open TaggedDfa
 
-  let create matcher tag = TaggedNfa.lift (Regex.compile matcher) tag
+  let tag matcher t = TaggedNfa.lift (compile_regex matcher) t
   let ( >>| ) = TaggedNfa.alt
-  let determinise = determinise
+  let compile = determinise
 
   type lexing_state = {
     state : state;

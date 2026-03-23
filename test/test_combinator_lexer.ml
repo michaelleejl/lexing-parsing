@@ -8,11 +8,11 @@ open Lexer (Mlot)
 let ident_m = Matcher.(alphabetic >& ~*alphanumeric)
 let literal_m = Matcher.(~?(from_str "-") >& ~+numeric)
 let whitespace_m = Matcher.whitespace
-let ident = promote ident_m (fun cs -> Some (IDENT (cs |> Base.String.of_list)))
-let whitespace = promote whitespace_m (fun cs -> None)
+let ident = tag ident_m (fun cs -> Some (IDENT (cs |> Base.String.of_list)))
+let whitespace = tag whitespace_m (fun cs -> None)
 
 let literal =
-  promote literal_m (fun cs ->
+  tag literal_m (fun cs ->
       Some (NUM (cs |> Base.String.of_list |> Base.Int.of_string)))
 
 let keywords =
@@ -36,7 +36,7 @@ let operators =
 
 let to_lexer xs =
   Base.List.fold xs ~init:empty ~f:(fun acc ->
-      fun (s, to_token) -> acc >>| promote (Matcher.from_str s) to_token)
+      fun (s, to_token) -> acc >>| tag (Matcher.from_str s) to_token)
 
 let tokens =
   to_lexer keywords >>| to_lexer operators >>| ident >>| literal >>| whitespace
