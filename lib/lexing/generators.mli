@@ -44,11 +44,4 @@ module Lexer (Lang : L) (Tag : T with type token = Lang.token) : sig
   val ( >>| ) : s -> s -> s
   val determinise : s -> t
   val lex : t -> string -> token list
-
-  (* 
-  
-
-  val generate : t -> s 
-
-  val lex : s -> string -> token list  *)
 end

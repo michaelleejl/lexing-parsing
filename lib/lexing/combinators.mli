@@ -44,11 +44,12 @@ module Lexer : (Lang : L) -> sig
   exception LexFailure
 
   type token = Lang.token
+  type action = char list -> token option
   type matcher = Matcher.matcher
   type lex_state = { lexed : token list; rest : char list }
   type lexer = lex_state -> lex_state outcome
 
-  val promote : matcher -> (char list -> token) -> lexer
+  val promote : matcher -> action -> lexer
   val empty : lexer
   val epsilon : lexer
   val ( >>& ) : lexer -> lexer -> lexer
@@ -56,6 +57,5 @@ module Lexer : (Lang : L) -> sig
   val ( ~~* ) : lexer -> lexer
   val ( ~~+ ) : lexer -> lexer
   val ( ~~? ) : lexer -> lexer
-  val from_tokens : lexer -> lexer
   val lex : lexer -> string -> token list
 end

@@ -115,6 +115,7 @@ module Lexer (Lang : L) = struct
   exception LexFailure
 
   type token = Lang.token
+  type action = char list -> token option
   type lex_state = { lexed : token list; rest : char list }
   type lexer = lex_state -> lex_state outcome
   type matcher = Matcher.matcher
@@ -122,9 +123,10 @@ module Lexer (Lang : L) = struct
   let promote (m : matcher) to_token { lexed; rest } =
     match m rest with
     | Failure -> Failure
-    | Success { matched; rest } ->
-        let t = to_token matched in
-        Success { lexed = t :: lexed; rest }
+    | Success { matched; rest } -> (
+        match to_token matched with
+        | None -> Success { lexed; rest }
+        | Some t -> Success { lexed = t :: lexed; rest })
 
   let empty _ = Failure
   let epsilon s = Success s
@@ -149,13 +151,6 @@ module Lexer (Lang : L) = struct
   let ( ~~+ ) = plus
   let maybe l = l >>| epsilon
   let ( ~~? ) = maybe
-
-  let whitespace { lexed; rest } =
-    match Matcher.whitespace rest with
-    | Failure -> Failure
-    | Success { matched; rest } -> Success { lexed; rest }
-
-  let from_tokens ts = epsilon >>| ts >>& ~~*(whitespace >>& ts)
 
   let lex l s =
     let cs = String.to_list s in
