@@ -9,8 +9,8 @@ module Mlot_Token = struct
     | FALSE
     | FUN
     | ARROW
-    | LPARAN
-    | RPARAN
+    | LPAREN
+    | RPAREN
     | PLUS
     | LET
     | EQUALS
@@ -25,8 +25,8 @@ module Mlot_Token = struct
     | FALSE -> "FALSE"
     | FUN -> "FUN"
     | ARROW -> "ARROW"
-    | LPARAN -> "LPARAN"
-    | RPARAN -> "RPARAN"
+    | LPAREN -> "LPAREN"
+    | RPAREN -> "RPAREN"
     | PLUS -> "PLUS"
     | LET -> "LET"
     | EQUALS -> "EQUALS"

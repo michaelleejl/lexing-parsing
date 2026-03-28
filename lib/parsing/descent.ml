@@ -44,10 +44,10 @@ module Recogniser = struct
     | NUM _ :: toks -> toks 
     | TRUE :: toks -> toks 
     | FALSE :: toks -> toks 
-    | LPARAN :: toks -> 
+    | LPAREN :: toks -> 
       begin match e toks with 
-          | RPARAN :: toks' -> toks'  
-          | _ -> raise (ParseFail "S LParan") end 
+          | RPAREN :: toks' -> toks'  
+          | _ -> raise (ParseFail "S LPAREN") end 
     | _ -> raise (ParseFail "S")
 
     let recognise ts = match e ts with 
@@ -101,10 +101,10 @@ module Recogniser = struct
       | NUM n :: toks -> (Num n), toks 
       | TRUE :: toks -> (Bool true), toks 
       | FALSE :: toks -> (Bool false), toks 
-      | LPARAN :: toks -> 
+      | LPAREN :: toks -> 
         begin match e toks with 
-            | term, RPARAN :: toks' -> term, toks'  
-            | _ -> raise (ParseFail "S LParan") end 
+            | term, RPAREN :: toks' -> term, toks'  
+            | _ -> raise (ParseFail "S LPAREN") end 
       | _ -> raise (ParseFail "S")
 
     let parse ts = match e ts with 

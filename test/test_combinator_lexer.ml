@@ -18,8 +18,8 @@ let operators =
   interpret (r "=") (fun _ -> Some EQUALS)
   >>| interpret (r {|\+|}) (fun _ -> Some PLUS)
   >>| interpret (r "->") (fun _ -> Some ARROW)
-  >>| interpret (r {|\(|}) (fun _ -> Some LPARAN)
-  >>| interpret (r {|\)|}) (fun _ -> Some RPARAN)
+  >>| interpret (r {|\(|}) (fun _ -> Some LPAREN)
+  >>| interpret (r {|\)|}) (fun _ -> Some RPAREN)
 
 let ident =
   interpret (r "[a-zA-Z][a-zA-Z0-9]*") (fun cs ->

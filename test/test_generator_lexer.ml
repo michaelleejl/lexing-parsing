@@ -13,8 +13,8 @@ module Tag = struct
     | T_FALSE
     | T_FUN
     | T_ARROW
-    | T_LPARAN
-    | T_RPARAN
+    | T_LPAREN
+    | T_RPAREN
     | T_PLUS
     | T_LET
     | T_EQUALS
@@ -30,8 +30,8 @@ module Tag = struct
     | T_FALSE -> fun _ -> Some FALSE
     | T_FUN -> fun _ -> Some FUN
     | T_ARROW -> fun _ -> Some ARROW
-    | T_LPARAN -> fun _ -> Some LPARAN
-    | T_RPARAN -> fun _ -> Some RPARAN
+    | T_LPAREN -> fun _ -> Some LPAREN
+    | T_RPAREN -> fun _ -> Some RPAREN
     | T_PLUS -> fun _ -> Some PLUS
     | T_LET -> fun _ -> Some LET
     | T_EQUALS -> fun _ -> Some EQUALS
@@ -58,8 +58,8 @@ let operators =
   compile (r "=") T_EQUALS
   >>| compile (r {|\+|}) T_PLUS
   >>| compile (r "->") T_ARROW
-  >>| compile (r {|\(|}) T_LPARAN
-  >>| compile (r {|\)|}) T_RPARAN
+  >>| compile (r {|\(|}) T_LPAREN
+  >>| compile (r {|\)|}) T_RPAREN
 
 let ident = compile (r "[a-zA-Z][a-zA-Z0-9]*") T_IDENT
 let literal = compile (r "-?[0-9]+") T_NUM
