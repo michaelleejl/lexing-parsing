@@ -73,11 +73,11 @@ _In this section, we will build recogniser and lexer combinators._
 
 2. Eliminate ambiguity in the language above. Do this by dividing the language above into simple expressions ($s$), terms ($t$), and expressions ($e$), such simple expressions are terms, and terms are expressions, as such:
     $$\begin{array}{rcl}
-      s & := & s \,\, \text{rules}\\
-      t & := & s \mid t \,\, \text{rules}\\
-      e & := & t \mid e \,\, \text{rules}
+      e & := & \ldots \mid t \\
+      t & := & \ldots \mid s \\
+      s & := & \ldots
     \end{array}$$
-    Thus, if asked to produce an expresson $e$, it suffices to produce a term $t$. However, simple expressions, terms, and expressions are ordered as follows: when trying to create an expression $e$, we will only try to create a term $t$ if none of the $e$ rules match. Similarly, when trying to create a term $t$, we will only try to create a simple expression $s$ if none of the $t$ rules match. 
+    Thus, terms $t$ are expressions $e$. Rules are ordered by priority. Rules to the left have higher priority than rules to the right. Thus, when trying to create an expression $e$, we will only try to create a term $t$ if none of the other $e$ rules match.
 
     With reference to question 1, show how your new rules eliminate ambiguity. 
 
