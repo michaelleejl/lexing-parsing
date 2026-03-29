@@ -1,4 +1,4 @@
-open Intfs.Tags
+open Intfs
 
 module type S = sig
   type state = Nfa.state
@@ -32,4 +32,4 @@ module type S = sig
   val emit_tag : t -> state_set -> tag option
 end
 
-module Make (Tag : T) : S with type tag = Tag.t
+module Make (Tag : Tags.S) : S with type tag = Tag.t

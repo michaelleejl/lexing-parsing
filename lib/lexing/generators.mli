@@ -1,6 +1,4 @@
 open Intfs
-open Intfs.Language
-open Intfs.Tags
 
 module Recogniser : sig
   type r = Regex.t
@@ -10,7 +8,7 @@ module Recogniser : sig
   val recognise : t -> string -> bool
 end
 
-module Lexer (Lang : L) (Tag : T with type token = Lang.token) : sig
+module Lexer (Lang : Language.S) (Tag : Tags.S with type token = Lang.token) : sig
   type tag = Tag.t
   type token = Lang.token
   type r = Regex.t

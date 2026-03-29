@@ -18,10 +18,8 @@ module Recogniser = struct
 end
 
 open Intfs
-open Intfs.Language
-open Intfs.Tags
 
-module Lexer (Lang : L) (Tag : T with type token = Lang.token) = struct
+module Lexer (Lang : Language.S) (Tag : Tag.S with type token = Lang.token) = struct
   module TaggedDfa = Tdfa.Make (Tag)
   module TaggedNfa = TaggedDfa.TaggedNfa
 

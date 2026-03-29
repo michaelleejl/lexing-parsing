@@ -1,5 +1,4 @@
 open Intfs
-open Intfs.Language
 
 module Recogniser : sig
   type r = Regex.t
@@ -9,7 +8,7 @@ module Recogniser : sig
   val recognise : t -> string -> bool
 end
 
-module Lexer : (Lang : L) -> sig
+module Lexer : (Lang : Language.S) -> sig
   type token = Lang.token
   type action = char list -> token option
   type r = Regex.t

@@ -10,21 +10,21 @@ module type Token = sig
 end
 
 module Language = struct
-  module type L = sig
+  module type S = sig
     type token
     type ast
     type fparam
   end
 
-  module Make (T : Token) (A : Ast) = struct
-    type token = T.t
+  module Make (S : Token) (A : Ast) = struct
+    type token = S.t
     type ast = A.node
     type fparam = A.fparam
   end
 end
 
 module Tags = struct
-  module type T = sig
+  module type S = sig
     type t
     type token
 
@@ -32,3 +32,4 @@ module Tags = struct
     val tag_to_action : t -> char list -> token option
   end
 end
+ 

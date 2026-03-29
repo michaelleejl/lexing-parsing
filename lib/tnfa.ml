@@ -1,4 +1,4 @@
-open Intfs.Tags
+open Intfs
 
 module type S = sig
   type state = Nfa.state
@@ -32,7 +32,7 @@ module type S = sig
   val emit_tag : t -> state_set -> tag option
 end
 
-module Make (Tag : T) = struct
+module Make (Tag : Tags.S) = struct
   include Nfa
   module StateMap = Map.Make (State)
 

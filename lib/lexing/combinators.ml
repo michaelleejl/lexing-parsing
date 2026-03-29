@@ -1,5 +1,4 @@
 open Intfs
-open Intfs.Language
 open Regex
 
 module Recogniser = struct
@@ -38,7 +37,7 @@ module Recogniser = struct
     match r (Base.String.to_list s) with Success [] -> true | _ -> false
 end
 
-module Lexer (Lang : L) = struct
+module Lexer (Lang : Language.S) = struct
   type token = Lang.token
   type action = char list -> token option
   type r = Regex.t
