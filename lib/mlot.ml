@@ -128,32 +128,28 @@ module Mlot_Grammar = struct
   [@@deriving to_string]
 
   type nonterminal = E | T' | T | F' | F | G' | G | S
-  [@@deriving equal, hash, to_string]
+  [@@deriving compare, equal, hash, to_string]
 
   module Nonterminal = struct
-    type t = nonterminal [@@deriving equal, hash]
+    type t = nonterminal [@@deriving compare, equal, hash]
   end
 
-  type data = Atom of ast | Operands of ast list
-
-  type param =
+  type data =
     | None
     | Num of int
     | Name of string
     | Expr of ast
     | Exprs of ast list
 
-  let inject = function Atom e -> Expr e | Operands es -> Exprs es
+  type parser = token list -> data * token list
 
-  let unwrap = function
-    | Atom e -> e
-    | Operands es -> failwith "cannot unwrap list of operands"
+  let unwrap = function Expr e -> e | _ -> failwith "Must be Expr type"
 
   type t = T of terminal | N of nonterminal
-  type action = t list * (param list -> data)
+  type action = t list * (data list -> data)
   type actions = action list
 
-  let terminal_to_param t (toks : token list) =
+  let terminal_to_parser t (toks : token list) =
     match (t, toks) with
     | IDENT, IDENT x :: toks' -> (Name x, toks')
     | NUM, NUM n :: toks' -> (Num n, toks')
@@ -171,27 +167,27 @@ module Mlot_Grammar = struct
         (None, toks')
     | _ -> raise Fail
 
-  module NontermHashtbl = Hashtbl.Make (Nonterminal)
   open Mlot_Ast
 
-  let mk_fun x e = Atom (Fun (x, e))
-  let mk_let x e1 e2 = Atom (Let (x, e1, e2))
-  let mk_letrec x e1 e2 = Atom (LetRec (x, e1, e2))
-  let mk_var x = Atom (Var x)
-  let mk_num n = Atom (Num n)
-  let mk_bool b = Atom (Bool b)
+  let mk_fun x e = Expr (Fun (x, e))
+  let mk_let x e1 e2 = Expr (Let (x, e1, e2))
+  let mk_letrec x e1 e2 = Expr (LetRec (x, e1, e2))
+  let mk_var x = Expr (Var x)
+  let mk_num n = Expr (Num n)
+  let mk_bool b = Expr (Bool b)
   let eq e1 e2 = Equals (e1, e2)
   let pl e1 e2 = Plus (e1, e2)
   let ap e1 e2 = App (e1, e2)
-  let mk_op op e es = Atom (List.fold_left op e es)
+  let mk_op op e es = Expr (List.fold_left op e es)
   let mk_eq e es = mk_op eq e es
   let mk_plus e es = mk_op pl e es
   let mk_app e es = mk_op ap e es
-  let mk_nil = Operands []
-  let mk_cons e es = Operands (e :: es)
-  let mk_one e = Atom e
+  let mk_nil = Exprs []
+  let mk_cons e es = Exprs (e :: es)
+  let mk_one e = Expr e
 
-  let grammar_list : (nonterminal * actions) list =
+  (* e -> fun x -> e | let x = e in e *)
+  let grammar : (nonterminal * actions) list =
     [
       ( E,
         [
@@ -214,7 +210,7 @@ module Mlot_Grammar = struct
         ] );
       ( T',
         [
-          ( [ T EQUALS; N G; N T' ],
+          ( [ T EQUALS; N F; N T' ],
             [%act function [ _; Expr e; Exprs es ] -> mk_cons e es] );
           ([], [%act function [] -> mk_nil]);
         ] );
@@ -224,7 +220,7 @@ module Mlot_Grammar = struct
         ] );
       ( F',
         [
-          ( [ T PLUS; N S; N F' ],
+          ( [ T PLUS; N G; N F' ],
             [%act function [ _; Expr e; Exprs es ] -> mk_cons e es] );
           ([], [%act function [] -> mk_nil]);
         ] );
@@ -247,10 +243,4 @@ module Mlot_Grammar = struct
             [%act function [ _; Expr e; _ ] -> mk_one e] );
         ] );
     ]
-
-  let start = E
-  let grammar = NontermHashtbl.create 10
-  let populate (k, v) = NontermHashtbl.add grammar k v;;
-
-  List.iter populate grammar_list
 end

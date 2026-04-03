@@ -50,23 +50,19 @@ module BNF = struct
 
       val equal : t -> t -> bool
       val hash : t -> int
+      val compare : t -> t -> int
     end
 
     type data
-    type param
+    type parser = token list -> data * token list
 
-    val inject : data -> param
     val unwrap : data -> ast
 
     type t = T of terminal | N of nonterminal
-    type action = t list * (param list -> data)
+    type action = t list * (data list -> data)
     type actions = action list
 
-    val terminal_to_param : terminal -> token list -> param * token list
-
-    module NontermHashtbl : Hashtbl.S with type key = nonterminal
-
-    val grammar : actions NontermHashtbl.t
-    val start : nonterminal
+    val terminal_to_parser : terminal -> parser
+    val grammar : (nonterminal * actions) list
   end
 end

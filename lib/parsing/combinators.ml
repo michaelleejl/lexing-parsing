@@ -21,54 +21,72 @@ struct
   let alt p1 p2 toks =
     match p1 toks with toks' -> toks' | exception ParseFail _ -> p2 toks
 
+  let seq p1 p2 toks =
+    let d1, toks' = p1 toks in
+    let d2, toks'' = p2 toks' in
+    (d1 @ d2, toks'')
+
+  let ( >>| ) = alt
+  let ( >>& ) = seq
   let empty ?(msg = "empty") _ = raise (ParseFail msg)
+  let eps toks = ([], toks)
 
-  type table_t = (token list -> data * token list) NontermHashtbl.t
+  let rec iota n =
+    match n with
+    | 0 -> []
+    | n when n > 0 -> (n - 1) :: iota (n - 1)
+    | _ -> failwith "n should be positive"
 
-  let table : table_t = NontermHashtbl.create 10
+  let rec fix f x = f (fix f) x
 
-  let init key _ =
-    let key_str = string_of_nonterminal key in
-    NontermHashtbl.add table key (empty ~msg:key_str)
-  ;;
+  let fix_poly fs =
+    fix (fun self fs -> List.map (fun f x -> f (self fs) x) fs) fs
 
-  (* initialise the parse table *)
-  NontermHashtbl.iter init grammar;;
+  module NonterminalMap = Map.Make (Grammar.Nonterminal)
 
-  let rec patterns_to_params patterns toks =
-    match patterns with
-    | [] -> ([], toks)
-    | N n :: patterns ->
-        let data, toks' = (NontermHashtbl.find table n) toks in
-        let param = inject data in
-        let params, toks'' = patterns_to_params patterns toks' in
-        (param :: params, toks'')
-    | T t :: patterns -> (
-        try
-          let param, toks' = terminal_to_param t toks in
-          let params, toks'' = patterns_to_params patterns toks' in
-          (param :: params, toks'')
-        with Grammar.Fail -> raise (ParseFail "terminal"))
+  let nonterminals : nonterminal list = List.map fst Grammar.grammar
+  let productions : actions list = List.map snd Grammar.grammar
 
-  let lift (patterns, params_to_data) toks =
-    let params, toks' = patterns_to_params patterns toks in
-    (params_to_data params, toks')
-
-  let populate key pss =
-    let f prod acc =
-      let p = lift prod in
-      alt p acc
+  let nt_to_idx =
+    let _, map =
+      List.fold_left
+        (fun (idx, map) -> fun nt -> (idx + 1, NonterminalMap.add nt idx map))
+        (0, NonterminalMap.empty) nonterminals
     in
-    let key_str = string_of_nonterminal key in
-    let parse = List.fold_right f pss (empty ~msg:key_str) in
-    NontermHashtbl.replace table key parse
-  ;;
+    map
 
-  (* populate the hash table *)
-  NontermHashtbl.iter populate grammar;;
+  let terminal_to_parser t toks =
+    try Grammar.terminal_to_parser t toks
+    with Grammar.Fail -> raise (ParseFail "terminal")
+
+  let nonterminal_to_parser nt fs toks =
+    (List.nth fs (NonterminalMap.find nt nt_to_idx)) toks
+
+  let parser_to_matcher (x, y) = ([ x ], y)
+
+  type matcher = token list -> data list * token list
+
+  let pattern_to_matcher fs = function
+    | T t -> Fun.compose parser_to_matcher (terminal_to_parser t)
+    | N n -> Fun.compose parser_to_matcher (nonterminal_to_parser n fs)
+
+  let production_to_matcher fs ps =
+    List.fold_left ( >>& ) eps (List.map (pattern_to_matcher fs) ps)
+
+  let production_to_parser fs (production, matcher_to_parser) toks =
+    let matcher, toks' = production_to_matcher fs production toks in
+    (matcher_to_parser matcher, toks')
+
+  let productions_to_parsers fs (pss : Grammar.actions) =
+    List.fold_left ( >>| ) (empty ~msg:"fail")
+      (List.map (production_to_parser fs) pss)
+
+  let parsers =
+    List.map (fun p -> fun fs -> productions_to_parsers fs p) productions
+
+  let parser = fix_poly parsers
+  let start = List.nth parser 0
 
   let parse ts =
-    match NontermHashtbl.find table start ts with
-    | e, [] -> unwrap e
-    | e, _ -> raise (ParseFail "bad parse")
+    match start ts with e, [] -> unwrap e | _ -> raise (ParseFail "fail")
 end
