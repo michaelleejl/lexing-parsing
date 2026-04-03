@@ -1,13 +1,17 @@
 type 'a outcome = Success of 'a | Failure
 
-module type Ast = sig
-  type fparam
-  type node
+module Ast = struct 
+  module type S = sig 
+    type fparam
+    type node
+  end 
 end
 
-module type Token = sig
-  type t
-end
+module Token = struct 
+  module type S = sig
+    type t
+  end
+end 
 
 module Language = struct
   module type S = sig
@@ -16,7 +20,7 @@ module Language = struct
     type fparam
   end
 
-  module Make (S : Token) (A : Ast) = struct
+  module Make (S : Token.S) (A : Ast.S) = struct
     type token = S.t
     type ast = A.node
     type fparam = A.fparam
