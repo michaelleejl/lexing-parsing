@@ -1,17 +1,20 @@
 open Intfs
 
 module type S = sig
+  type input 
+  module Nfa: Nfa.S with type input = input 
+
   type state = Nfa.state
 
   module StateSet : Set.S with type elt = state
-  module CharSet : Set.S with type elt = char
-  module CharOptMap : Map.S with type key = char option
+  module InputSet : Set.S with type elt = input
+  module InputOptMap : Map.S with type key = input option
   module StateMap : Map.S with type key = state
 
   type tag
-  type transition = StateSet.t CharOptMap.t
+  type transition = StateSet.t InputOptMap.t
   type state_set = StateSet.t
-  type char_set = CharSet.t
+  type input_set = InputSet.t
   type tag_lookup = tag StateMap.t
 
   type t = {
@@ -19,7 +22,7 @@ module type S = sig
     initial : state;
     finals : state_set;
     next : state -> transition;
-    alphabet : char_set;
+    alphabet : input_set;
     tagger : tag_lookup;
   }
 
@@ -28,12 +31,13 @@ module type S = sig
   val initialise : t -> state_set
   val is_rejecting : t -> state_set -> bool
   val is_accepting : t -> state_set -> bool
-  val step : t -> state_set -> char -> state_set
+  val step : t -> state_set -> input -> state_set
   val emit_tag : t -> state_set -> tag option
 end
 
-module Make (Tag : Tags.S) = struct
-  include Nfa
+module Make (Input: Inputs.S) (Tag : Tags.S with type input = Input.t) = struct
+  module Nfa = Nfa.Make(Input)
+  include Nfa 
   module StateMap = Map.Make (State)
 
   type tag = Tag.t
@@ -44,7 +48,7 @@ module Make (Tag : Tags.S) = struct
     initial : state;
     finals : state_set;
     next : state -> transition;
-    alphabet : char_set;
+    alphabet : input_set;
     tagger : tag_lookup;
   }
 
@@ -57,7 +61,7 @@ module Make (Tag : Tags.S) = struct
       finals = StateSet.map (( + ) m) n.finals;
       next =
         (fun s ->
-          CharOptMap.map
+          InputOptMap.map
             (fun v -> StateSet.map (fun x -> x + m) v)
             (n.next (s - m)));
       alphabet = n.alphabet;
@@ -74,7 +78,7 @@ module Make (Tag : Tags.S) = struct
       finals = StateSet.map (fun s -> s * 2) n.finals;
       next =
         (fun s ->
-          CharOptMap.map
+          InputOptMap.map
             (fun v -> StateSet.map (fun x -> x * 2) v)
             (n.next (s / 2)));
       alphabet = n.alphabet;
@@ -91,7 +95,7 @@ module Make (Tag : Tags.S) = struct
       finals = StateSet.map (fun s -> (s * 2) + 1) n.finals;
       next =
         (fun s ->
-          CharOptMap.map
+          InputOptMap.map
             (fun v -> StateSet.map (fun x -> (x * 2) + 1) v)
             (n.next ((s - 1) / 2)));
       alphabet = n.alphabet;
@@ -121,15 +125,15 @@ module Make (Tag : Tags.S) = struct
     let next' = fun s -> if s mod 2 = 0 then tn0'.next s else tn1'.next s in
     let next =
      fun s ->
-      if s = 0 then CharOptMap.singleton None initials
+      if s = 0 then InputOptMap.singleton None initials
       else
         let m = next' s in
         if StateSet.mem s finals then
-          CharOptMap.union merge m
-            (CharOptMap.singleton None (StateSet.singleton 1))
+          InputOptMap.union merge m
+            (InputOptMap.singleton None (StateSet.singleton 1))
         else m
     in
-    let alphabet = CharSet.union tn0'.alphabet tn1'.alphabet in
+    let alphabet = InputSet.union tn0'.alphabet tn1'.alphabet in
     let tagger =
       StateMap.union
         (fun _ t1 t2 -> if t1 > t2 then Some t1 else Some t2)

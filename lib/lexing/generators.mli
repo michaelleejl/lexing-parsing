@@ -10,7 +10,7 @@ end
 
 module Lexer
     (Lang : Language.S)
-    (Tag : Tags.S with type token = Lang.token) : sig
+    (Tag : Tags.S with type token = Lang.token and type input=char) : sig
   type tag = Tag.t
   type token = Lang.token
   type r = Regex.t

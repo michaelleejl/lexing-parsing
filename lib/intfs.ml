@@ -1,5 +1,14 @@
 type 'a outcome = Success of 'a | Failure
 
+module Inputs = struct 
+  module type S = sig 
+    type t 
+    
+    val compare : t -> t -> int 
+  end 
+
+end 
+
 module Ast = struct 
   module type S = sig 
     type fparam
@@ -20,8 +29,8 @@ module Language = struct
     type fparam
   end
 
-  module Make (S : Token.S) (A : Ast.S) = struct
-    type token = S.t
+  module Make (T : Token.S) (A : Ast.S) = struct
+    type token = T.t
     type ast = A.node
     type fparam = A.fparam
   end
@@ -31,9 +40,10 @@ module Tags = struct
   module type S = sig
     type t
     type token
+    type input
 
     val compare : t -> t -> int
-    val tag_to_action : t -> char list -> token option
+    val tag_to_action : t -> input list -> token option
   end
 end
 

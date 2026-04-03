@@ -1,17 +1,21 @@
 open Intfs
 
 module type S = sig
+  type input 
+
+  module Nfa: Nfa.S with type input = input 
+
   type state = Nfa.state
 
   module StateSet : Set.S with type elt = state
-  module CharSet : Set.S with type elt = char
-  module CharOptMap : Map.S with type key = char option
+  module InputSet : Set.S with type elt = input
+  module InputOptMap : Map.S with type key = input option
   module StateMap : Map.S with type key = state
 
   type tag
-  type transition = StateSet.t CharOptMap.t
+  type transition = StateSet.t InputOptMap.t
   type state_set = StateSet.t
-  type char_set = CharSet.t
+  type input_set = InputSet.t
   type tag_lookup = tag StateMap.t
 
   type t = {
@@ -19,7 +23,7 @@ module type S = sig
     initial : state;
     finals : state_set;
     next : state -> transition;
-    alphabet : char_set;
+    alphabet : input_set;
     tagger : tag_lookup;
   }
 
@@ -28,8 +32,8 @@ module type S = sig
   val initialise : t -> state_set
   val is_rejecting : t -> state_set -> bool
   val is_accepting : t -> state_set -> bool
-  val step : t -> state_set -> char -> state_set
+  val step : t -> state_set -> input -> state_set
   val emit_tag : t -> state_set -> tag option
 end
 
-module Make (Tag : Tags.S) : S with type tag = Tag.t
+module Make (Input: Inputs.S) (Tag : Tags.S with type input = Input.t) : S with type tag = Tag.t and type input = Input.t 

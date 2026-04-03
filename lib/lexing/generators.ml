@@ -1,27 +1,32 @@
 open Regex
 
-let rec compile_regex r =
+module RegexToNfa (N: Nfa.S with type input = char) = struct 
+  let rec compile r =
   match r with
-  | Empty -> Nfa.empty
-  | Epsilon -> Nfa.epsilon
-  | Char cs -> Nfa.one_of (C.to_list cs)
-  | Alt (r1, r2) -> Nfa.alt (compile_regex r1) (compile_regex r2)
-  | Seq (r1, r2) -> Nfa.seq (compile_regex r1) (compile_regex r2)
-  | Kleene r -> Nfa.kleene (compile_regex r)
+  | Empty -> N.empty
+  | Epsilon -> N.epsilon
+  | Char cs -> N.one_of (C.to_list cs)
+  | Alt (r1, r2) -> N.alt (compile r1) (compile r2)
+  | Seq (r1, r2) -> N.seq (compile r1) (compile r2)
+  | Kleene r -> N.kleene (compile r)
+end 
 
 module Recogniser = struct
+  module Dfa = Dfa.Make(Char)
+  open Dfa 
   type r = Regex.t
   type t = Dfa.t
 
-  let compile r = compile_regex r |> Dfa.determinise
-  let recognise = Dfa.accept
+  module RegexCompiler = RegexToNfa(Nfa)
+  let compile r = RegexCompiler.compile r |> Dfa.determinise
+  let recognise dfa s =  Base.String.to_list s |> Dfa.accept dfa
 end
 
 open Intfs
 
-module Lexer (Lang : Language.S) (Tag : Tags.S with type token = Lang.token) =
+module Lexer (Lang : Language.S) (Tag : Tags.S with type token = Lang.token and type input = char) =
 struct
-  module TaggedDfa = Tdfa.Make (Tag)
+  module TaggedDfa = Tdfa.Make(Char)(Tag)
   module TaggedNfa = TaggedDfa.TaggedNfa
 
   type token = Lang.token
@@ -34,7 +39,9 @@ struct
 
   open TaggedDfa
 
-  let compile matcher t = TaggedNfa.lift (compile_regex matcher) t
+  module RegexCompiler = RegexToNfa(TaggedNfa.Nfa)
+
+  let compile matcher t = TaggedNfa.lift (RegexCompiler.compile matcher) t
   let ( >>| ) = TaggedNfa.alt
   let determinise = determinise
 

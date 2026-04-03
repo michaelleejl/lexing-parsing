@@ -2,17 +2,18 @@ open Intfs
 
 module type S = sig
   type tag
+  type input 
 
-  module TaggedNfa : Tnfa.S with type tag = tag
+  module TaggedNfa : Tnfa.S with type tag = tag and type input = input
   module StateSet : Set.S with type elt = TaggedNfa.StateSet.elt
   module StateMap : Map.S with type key = int
-  module CharSet : Set.S with type elt = TaggedNfa.CharSet.elt
-  module CharMap : Map.S with type key = char
+  module InputSet : Set.S with type elt = TaggedNfa.InputSet.elt
+  module InputMap : Map.S with type key = input 
 
   type state = StateSet.elt
   type state_set = StateSet.t
-  type char_set = CharSet.t
-  type transition = state CharMap.t
+  type input_set = InputSet.t
+  type transition = state InputMap.t
   type tag_lookup = tag option StateMap.t
 
   type t = {
@@ -21,7 +22,7 @@ module type S = sig
     finals : state_set;
     rejecting : state;
     next : state -> transition;
-    alphabet : char_set;
+    alphabet : input_set;
     tagger : tag_lookup;
   }
 
@@ -29,22 +30,25 @@ module type S = sig
   val initialise : t -> state
   val is_rejecting : t -> state -> bool
   val is_accepting : t -> state -> bool
-  val step : t -> state -> char -> state
+  val step : t -> state -> input -> state
   val emit_tag : t -> state -> tag option
 end
 
-module Make (Tag : Tags.S) = struct
-  module TaggedNfa = Tnfa.Make (Tag)
+module Make (Input: Inputs.S) (Tag : Tags.S with type input = Input.t) = struct
+  type input = Input.t
+  type tag = Tag.t
+
+  module TaggedNfa : Tnfa.S with type tag = tag and type input = input =
+    Tnfa.Make (Input) (Tag)
+
   module StateSet = TaggedNfa.StateSet
   module StateMap = Map.Make (Int)
-  module CharSet = TaggedNfa.CharSet
-  module CharMap = Map.Make (Char)
-
-  type tag = Tag.t
+  module InputSet = TaggedNfa.InputSet
+  module InputMap = Map.Make (Input)
   type state = StateSet.elt
   type state_set = StateSet.t
-  type char_set = CharSet.t
-  type transition = state CharMap.t
+  type input_set = InputSet.t
+  type transition = state InputMap.t
   type tag_lookup = tag option StateMap.t
 
   type t = {
@@ -53,17 +57,17 @@ module Make (Tag : Tags.S) = struct
     finals : state_set;
     rejecting : state;
     next : state -> transition;
-    alphabet : char_set;
+    alphabet : input_set;
     tagger : tag_lookup;
   }
 
-  let find_next_state next q c = CharMap.find c (next q)
+  let find_next_state next q c = InputMap.find c (next q)
 
   let add_transition (source, c, target) transitions =
     match StateMap.find source transitions with
     | exception Not_found ->
-        StateMap.add source (CharMap.singleton c target) transitions
-    | cm -> StateMap.add source (CharMap.add c target cm) transitions
+        StateMap.add source (InputMap.singleton c target) transitions
+    | cm -> StateMap.add source (InputMap.add c target cm) transitions
 
   let add_tag state tag tagger = StateMap.add state tag tagger
 
@@ -109,7 +113,7 @@ module Make (Tag : Tags.S) = struct
             (m', s'', t'', f', r', tg')
           in
           let mapping', states', transitions', finals', rejecting', tagger' =
-            TaggedNfa.CharSet.fold builder n.alphabet
+            TaggedNfa.InputSet.fold builder n.alphabet
               (mapping, states, transitions, finals, rejecting, tagger)
           in
           ( dfa_state,
@@ -130,7 +134,7 @@ module Make (Tag : Tags.S) = struct
           StateMap.empty )
     in
     let next s =
-      try StateMap.find s transitions with Not_found -> CharMap.empty
+      try StateMap.find s transitions with Not_found -> InputMap.empty
     in
     let alphabet = n.alphabet in
     match rejecting with
@@ -143,7 +147,7 @@ module Make (Tag : Tags.S) = struct
   let is_accepting t_dfa q = StateSet.mem q t_dfa.finals
 
   let step t_dfa q c =
-    try CharMap.find c (t_dfa.next q) with Not_found -> t_dfa.rejecting
+    try InputMap.find c (t_dfa.next q) with Not_found -> t_dfa.rejecting
 
   let emit_tag t_dfa q =
     match StateMap.find q t_dfa.tagger with

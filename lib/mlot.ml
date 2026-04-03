@@ -81,6 +81,8 @@ module Tag = struct
     | T_IN
     | T_REC
 
+  type input = char 
+  
   type token = Mlot_Token.t
 
   let compare = compare
