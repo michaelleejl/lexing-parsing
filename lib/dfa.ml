@@ -42,6 +42,7 @@ module Make (Input: Inputs.S) = struct
   type input_set = InputSet.t
   type transition = state InputMap.t
 
+  let failure = 0
   type t = {
     states : state_set;
     initial : state;
@@ -50,7 +51,9 @@ module Make (Input: Inputs.S) = struct
     alphabet : input_set;
   }
 
-  let find_next_state next q c = InputMap.find c (next q)
+  let find_next_state next q c = 
+    try InputMap.find c (next q) with 
+    Not_found -> failure 
 
   let add_transition (source, c, target) transitions =
     match StateMap.find source transitions with
@@ -62,7 +65,7 @@ module Make (Input: Inputs.S) = struct
     let nfa_initial = Nfa.initialise n in
     let module M = Map.Make (Nfa.StateSet) in
     let gen_state =
-      let next_state = ref 0 in
+      let next_state = ref 1 in (*0 a rejecting state*)
       fun () ->
         let s = !next_state in
         next_state := s + 1;
@@ -93,8 +96,10 @@ module Make (Input: Inputs.S) = struct
           in
           (dfa_state, mapping', states', transitions', finals')
     in
+    let initial_map = StateMap.add 0 InputMap.empty StateMap.empty in
+    let initial_states = StateSet.of_list [0] in
     let initial, _, states, transitions, finals =
-      build nfa_initial (M.empty, StateSet.empty, StateMap.empty, StateSet.empty)
+      build nfa_initial (M.empty, initial_states, initial_map, StateSet.empty)
     in
     let next s =
       try StateMap.find s transitions with Not_found -> InputMap.empty
