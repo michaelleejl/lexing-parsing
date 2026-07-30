@@ -53,48 +53,15 @@ struct
     last_accepting : (int * state) option;
   }
 
-  let lex_step machine { state; rest; tokens; buffer; last_accepting } =
+  let rec lex_step machine { state; rest; tokens; buffer; last_accepting } =
     if is_rejecting machine state then
-      match last_accepting with
-      | None -> raise (LexFailure "no last accepting state")
-      | Some (k, qs) -> (
-          let tag = emit_tag machine qs in
-          match tag with
-          | None -> raise (LexFailure "tag is empty")
-          | Some tag -> (
-              let chars = List.drop k buffer in
-              let buffer = List.take k buffer in
-              let action = (Tag.tag_to_action tag) (List.rev chars) in
-              let last_accepting = None in
-              let state = initialise machine in
-              let rest = List.rev buffer @ rest in
-              let buffer = [] in
-              match action with
-              | None -> { rest; tokens; buffer; last_accepting; state }
-              | Some t ->
-                  { rest; tokens = t :: tokens; buffer; last_accepting; state })
-          )
+      rollback machine state rest tokens buffer last_accepting
     else
       match rest with
       | [] ->
           if is_accepting machine state then
-            let tag = emit_tag machine state in
-            match tag with
-            | None -> raise (LexFailure "tag is empty")
-            | Some tag -> (
-                let action = (Tag.tag_to_action tag) (List.rev buffer) in
-                match action with
-                | None ->
-                    { rest; tokens; buffer = []; last_accepting = None; state }
-                | Some t ->
-                    {
-                      rest;
-                      tokens = t :: tokens;
-                      buffer = [];
-                      last_accepting = None;
-                      state;
-                    })
-          else raise (LexFailure "last state was not accepting")
+            advance machine tokens rest buffer 0 state
+          else rollback machine state rest tokens buffer last_accepting
       | c :: rest ->
           let next_state = step machine state c in
           let new_accepting =
@@ -111,6 +78,27 @@ struct
             last_accepting = new_accepting;
             state = next_state;
           }
+  and rollback machine state rest tokens buffer last_accepting = 
+    match last_accepting with
+      | None -> raise (LexFailure "no last accepting state")
+      | Some (k, qs) -> advance machine tokens rest buffer k qs
+
+  and advance machine tokens rest buffer k qs = 
+    let tag = emit_tag machine qs in
+          match tag with
+          | None -> raise (LexFailure "tag is empty")
+          | Some tag -> (
+              let chars = List.drop k buffer in
+              let buffer = List.take k buffer in
+              let action = (Tag.tag_to_action tag) (List.rev chars) in
+              let last_accepting = None in
+              let state = initialise machine in
+              let rest = List.rev buffer @ rest in
+              let buffer = [] in
+              match action with
+              | None -> { rest; tokens; buffer; last_accepting; state }
+              | Some t ->
+                  { rest; tokens = t :: tokens; buffer; last_accepting; state })
 
   let rec lex_run machine state =
     match (state.rest, state.buffer) with
