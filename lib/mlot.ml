@@ -64,7 +64,7 @@ end
 
 module Mlot = Language.Make (Mlot_Token) (Mlot_Ast)
 
-module Tag = struct
+module LexTag = struct
   type t =
     | T_SKIP
     | T_IDENT

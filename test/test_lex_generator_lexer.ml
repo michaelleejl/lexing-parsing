@@ -3,7 +3,7 @@ open Lexparse.Lexing.Generators
 open Lexparse.Mlot
 open Mlot_Token
 open Printf
-open Lexer (Mlot) (Tag)
+open Lexer (Mlot) (LexTag)
 open Lexparse.Regex
 
 let keywords =
