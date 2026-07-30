@@ -40,11 +40,11 @@ end
 module Tags = struct
   module type S = sig
     type t
-    type token
+    type output
     type input
 
     val compare : t -> t -> int
-    val tag_to_action : t -> input list -> token option
+    val tag_to_action : t -> input list -> output option
   end
 end
 
