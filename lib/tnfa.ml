@@ -108,7 +108,7 @@ module Make (Input: Inputs.S) (Tag : Tags.S with type input = Input.t) = struct
   let lift ({ states; initial; finals; next; alphabet } : Nfa.t) tag =
     let tagger =
       StateMap.of_seq @@ List.to_seq
-      @@ List.map (fun s -> (s, tag)) (StateSet.to_list states)
+      @@ List.map (fun s -> (s, tag)) (StateSet.to_list finals)
     in
     { states; initial; finals; next; alphabet; tagger }
 
@@ -154,13 +154,14 @@ module Make (Input: Inputs.S) (Tag : Tags.S with type input = Input.t) = struct
   let initialise t = to_nfa t |> Nfa.initialise
   let is_rejecting t = to_nfa t |> Nfa.is_rejecting
   let is_accepting t = to_nfa t |> Nfa.is_accepting
+
   let step t = to_nfa t |> Nfa.step
 
-  let emit_tag { tagger } states =
+  let emit_tag t states =
     let state_list = StateSet.to_list states in
     List.fold_left
       (fun acc s ->
-        match StateMap.find s tagger with
+        match StateMap.find s t.tagger with
         | exception Not_found -> acc
         | v -> (
             match acc with
