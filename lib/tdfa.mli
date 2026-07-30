@@ -34,4 +34,4 @@ module type S = sig
   val emit_tag : t -> state -> tag option
 end
 
-module Make (Input: Inputs.S) (Tag : Tags.S with type input = Input.t) : S with type tag = Tag.t and type input = Input.t 
+module Make (Input: Inputs.S) (Tag : Tags.S) : S with type tag = Tag.t and type input = Input.t 

@@ -35,7 +35,7 @@ module type S = sig
   val emit_tag : t -> state_set -> tag option
 end
 
-module Make (Input: Inputs.S) (Tag : Tags.S with type input = Input.t) = struct
+module Make (Input: Inputs.S) (Tag : Tags.S) = struct
   module Nfa = Nfa.Make(Input)
   include Nfa 
   module StateMap = Map.Make (State)
