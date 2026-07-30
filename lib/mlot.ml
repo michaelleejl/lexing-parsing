@@ -85,6 +85,8 @@ module LexTag = struct
   
   type output = Mlot_Token.t option
 
+  type args = input list 
+
   let compare = compare
 
   let tag_to_action =
