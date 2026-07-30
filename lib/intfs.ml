@@ -44,7 +44,7 @@ module Tags = struct
     type input
 
     val compare : t -> t -> int
-    val tag_to_action : t -> input list -> output option
+    val tag_to_action : t -> input list -> output
   end
 end
 

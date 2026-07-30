@@ -83,7 +83,7 @@ module Tag = struct
 
   type input = char 
   
-  type output = Mlot_Token.t
+  type output = Mlot_Token.t option
 
   let compare = compare
 
