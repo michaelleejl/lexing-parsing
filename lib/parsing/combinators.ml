@@ -19,7 +19,7 @@ struct
   type ast = Lang.ast
 
   let alt p1 p2 toks =
-    match p1 toks with toks' -> toks' | exception ParseFail _ -> p2 toks
+    try p1 toks with ParseFail _ -> p2 toks
 
   let seq p1 p2 toks =
     let d1, toks' = p1 toks in
@@ -28,7 +28,7 @@ struct
 
   let ( >>| ) = alt
   let ( >>& ) = seq
-  let empty ?(msg = "empty") _ = raise (ParseFail msg)
+  let empty _ = raise (ParseFail "empty")
   let eps toks = ([], toks)
 
   let rec iota n =
@@ -62,27 +62,27 @@ struct
   let nonterminal_to_parser nt fs toks =
     (List.nth fs (NonterminalMap.find nt nt_to_idx)) toks
 
-  let parser_to_matcher (x, y) = ([ x ], y)
+  type accumulator = token list -> data list * token list
 
-  type matcher = token list -> data list * token list
+  let parser_to_accumulator (x, y) = ([ x ], y)
 
-  let pattern_to_matcher fs = function
-    | T t -> Fun.compose parser_to_matcher (terminal_to_parser t)
-    | N n -> Fun.compose parser_to_matcher (nonterminal_to_parser n fs)
+  let pattern_to_accumulator fs = function
+    | T t -> Fun.compose parser_to_accumulator (terminal_to_parser t)
+    | N n -> Fun.compose parser_to_accumulator (nonterminal_to_parser n fs)
 
-  let production_to_matcher fs ps =
-    List.fold_left ( >>& ) eps (List.map (pattern_to_matcher fs) ps)
+  let production_to_accumulator fs ps =
+    List.fold_left ( >>& ) eps (List.map (pattern_to_accumulator fs) ps)
 
-  let production_to_parser fs (production, matcher_to_parser) toks =
-    let matcher, toks' = production_to_matcher fs production toks in
-    (matcher_to_parser matcher, toks')
+  let production_to_parser fs (production, constructor) toks =
+    let accumulator, toks' = production_to_accumulator fs production toks in
+    (constructor accumulator, toks')
 
-  let productions_to_parsers fs (pss : Grammar.actions) =
-    List.fold_left ( >>| ) (empty ~msg:"fail")
+  let productions_to_parsers (pss : Grammar.actions) fs =
+    List.fold_left ( >>| ) empty
       (List.map (production_to_parser fs) pss)
 
   let parsers =
-    List.map (fun p -> fun fs -> productions_to_parsers fs p) productions
+    List.map (productions_to_parsers) productions
 
   let parser = fix_poly parsers
   let start = List.nth parser 0

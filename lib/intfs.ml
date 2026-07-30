@@ -1,14 +1,5 @@
 type 'a outcome = Success of 'a | Failure
 
-module Inputs = struct 
-  module type S = sig 
-    type t 
-    
-    val compare : t -> t -> int 
-  end 
-
-end 
-
 module Ast = struct 
   module type S = sig 
     type fparam
@@ -36,6 +27,16 @@ module Language = struct
   end
 end
 
+
+module Inputs = struct 
+  module type S = sig 
+    type t 
+    
+    val compare : t -> t -> int 
+  end 
+
+end 
+
 module Tags = struct
   module type S = sig
     type t
@@ -45,6 +46,20 @@ module Tags = struct
     val compare : t -> t -> int
     val tag_to_action : t -> input list -> token option
   end
+end
+
+module StackSyms = struct 
+  module type S = sig 
+    type t 
+    val compare : t -> t -> int 
+  end 
+end
+
+module Actions = struct 
+  module type S = sig 
+    type t 
+    val compare : t -> t -> int 
+  end 
 end
 
 module BNF = struct
