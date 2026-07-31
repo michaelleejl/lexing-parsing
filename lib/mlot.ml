@@ -64,50 +64,6 @@ end
 
 module Mlot = Language.Make (Mlot_Token) (Mlot_Ast)
 
-module LexTag = struct
-  type t =
-    | T_SKIP
-    | T_IDENT
-    | T_NUM
-    | T_TRUE
-    | T_FALSE
-    | T_FUN
-    | T_ARROW
-    | T_LPAREN
-    | T_RPAREN
-    | T_PLUS
-    | T_LET
-    | T_EQUALS
-    | T_IN
-    | T_REC
-
-  type input = char 
-  
-  type output = Mlot_Token.t option
-
-  type args = input list 
-
-  let compare = compare
-
-  let tag_to_action =
-    let open Mlot_Token in
-    function
-    | T_TRUE -> fun _ -> Some TRUE
-    | T_FALSE -> fun _ -> Some FALSE
-    | T_FUN -> fun _ -> Some FUN
-    | T_ARROW -> fun _ -> Some ARROW
-    | T_LPAREN -> fun _ -> Some LPAREN
-    | T_RPAREN -> fun _ -> Some RPAREN
-    | T_PLUS -> fun _ -> Some PLUS
-    | T_LET -> fun _ -> Some LET
-    | T_EQUALS -> fun _ -> Some EQUALS
-    | T_IN -> fun _ -> Some IN
-    | T_REC -> fun _ -> Some REC
-    | T_IDENT -> fun cs -> Some (IDENT (Base.String.of_list cs))
-    | T_NUM ->
-        fun cs -> Some (NUM (cs |> Base.String.of_list |> Base.Int.of_string))
-    | T_SKIP -> fun _ -> None
-end
 
 module Mlot_Grammar = struct
   exception Fail

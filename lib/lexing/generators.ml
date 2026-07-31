@@ -24,13 +24,39 @@ end
 
 open Intfs
 
-module Lexer (Lang : Language.S) (Tag : Tags.S with type output = Lang.token option and type args = char list) =
+module Lexer (Lang : Language.S) =
 struct
-  module TaggedDfa = Tdfa.Make(Char)(Tag)
-  module TaggedNfa = TaggedDfa.TaggedNfa
 
+  module LexTag = struct 
+
+    type t = int 
+
+    let next_tag = ref 0
+    let new_tag () =
+      let x = !next_tag in next_tag := x+1; x
+
+    type args = char list 
+    type output = Lang.token option 
+
+    type tag_table = (int, args -> output) Hashtbl.t 
+    let compare = compare 
+
+    let tags_to_actions: tag_table = Hashtbl.create 16
+
+    let register_tag tag action = 
+      Hashtbl.add tags_to_actions tag action 
+
+    let tag_to_action t cs = (Hashtbl.find tags_to_actions t) cs 
+  end 
+
+
+  module TaggedDfa = Tdfa.Make(Char)(LexTag)
+  module TaggedNfa = TaggedDfa.TaggedNfa
+  module Nfa = TaggedNfa.Nfa 
+
+  type tag = LexTag.t
+  type action = LexTag.args -> LexTag.output
   type token = Lang.token
-  type tag = Tag.t
   type r = Regex.t
   type s = TaggedNfa.t
   type t = TaggedDfa.t
@@ -41,7 +67,10 @@ struct
 
   module RegexCompiler = RegexToNfa(TaggedNfa.Nfa)
 
-  let compile matcher t = TaggedNfa.lift (RegexCompiler.compile matcher) t
+  let compile matcher action = 
+    let tag = LexTag.new_tag () in 
+    LexTag.register_tag tag action;
+    TaggedNfa.lift (RegexCompiler.compile matcher) tag 
   let ( >>| ) = TaggedNfa.alt
   let determinise = determinise
 
@@ -90,7 +119,7 @@ struct
           | Some tag -> (
               let chars = List.drop k buffer in
               let buffer = List.take k buffer in
-              let action = (Tag.tag_to_action tag) (List.rev chars) in
+              let action = (LexTag.tag_to_action tag) (List.rev chars) in
               let last_accepting = None in
               let state = initialise machine in
               let rest = List.rev buffer @ rest in

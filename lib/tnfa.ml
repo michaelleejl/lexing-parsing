@@ -136,7 +136,7 @@ module Make (Input: Inputs.S) (Tag : Tags.S) = struct
     let alphabet = InputSet.union tn0'.alphabet tn1'.alphabet in
     let tagger =
       StateMap.union
-        (fun _ t1 t2 -> if t1 > t2 then Some t1 else Some t2)
+        (fun _ t1 t2 -> if t1 < t2 then Some t1 else Some t2)
         tn0'.tagger tn1'.tagger
     in
     {
@@ -166,6 +166,6 @@ module Make (Input: Inputs.S) (Tag : Tags.S) = struct
         | v -> (
             match acc with
             | None -> Some v
-            | Some v' -> if v > v' then Some v else acc))
+            | Some v' -> if v < v' then Some v else acc))
       None state_list
 end
