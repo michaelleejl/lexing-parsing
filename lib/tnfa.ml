@@ -1,8 +1,9 @@
 open Intfs
 
 module type S = sig
-  type input 
-  module Nfa: Nfa.S with type input = input 
+  type input
+
+  module Nfa : Nfa.S with type input = input
 
   type state = Nfa.state
 
@@ -35,9 +36,9 @@ module type S = sig
   val emit_tag : t -> state_set -> tag option
 end
 
-module Make (Input: Inputs.S) (Tag : Tags.S) = struct
-  module Nfa = Nfa.Make(Input)
-  include Nfa 
+module Make (Input : Inputs.S) (Tag : Tags.S) = struct
+  module Nfa = Nfa.Make (Input)
+  include Nfa
   module StateMap = Map.Make (State)
 
   type tag = Tag.t
@@ -154,7 +155,6 @@ module Make (Input: Inputs.S) (Tag : Tags.S) = struct
   let initialise t = to_nfa t |> Nfa.initialise
   let is_rejecting t = to_nfa t |> Nfa.is_rejecting
   let is_accepting t = to_nfa t |> Nfa.is_accepting
-
   let step t = to_nfa t |> Nfa.step
 
   let emit_tag t states =

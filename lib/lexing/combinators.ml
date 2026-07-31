@@ -37,7 +37,7 @@ module Recogniser = struct
     match r (Base.String.to_list s) with Success [] -> true | _ -> false
 end
 
-module Lexer (Lang : Language.S) = struct
+module Lexer (Lang : Language.S) (Vocab: Vocabulary.S with type output = Lang.token option and type input = char and type spec = C.t rgx) = struct
   type token = Lang.token
   type action = char list -> token option
   type r = Regex.t
@@ -124,7 +124,13 @@ module Lexer (Lang : Language.S) = struct
     | { lexed; rest = [] } -> List.rev lexed
     | { lexed; rest } as state -> lex_run l state
 
-  let lex l s =
+
+  
+  let ls = List.map (fun (r, a) -> interpret r a) Vocab.vocabulary
+  let empty_lexer = interpret (Regex.empty) (fun _ -> raise LexFailure)
+  let lexer = List.fold_right (>>|) ls empty_lexer
+
+  let lex s =
     let cs = Base.String.to_list s in
-    lex_run l { lexed = []; rest = cs }
+    lex_run lexer { lexed = []; rest = cs }
 end

@@ -24,7 +24,7 @@ end
 
 open Intfs
 
-module Lexer (Lang : Language.S) =
+module Lexer (Lang : Language.S) (Vocab: Vocabulary.S with type output = Lang.token option and type input = char and type spec = C.t rgx) =
 struct
 
   module LexTag = struct 
@@ -134,16 +134,22 @@ struct
     | [], [] -> List.rev state.tokens
     | _, _ -> lex_run machine (lex_step machine state)
 
-  let lex machine s =
+  let ls = (List.map (fun (r, a) -> compile r a) Vocab.vocabulary)
+  
+  let empty_lexer = compile (Regex.empty) (fun _ -> raise (LexFailure "empty lexer"))
+  
+  let lexer = List.fold_right (>>|) ls empty_lexer |> determinise
+
+  let lex s =
     let cs = Base.String.to_list s in
     let initial_state =
       {
-        state = initialise machine;
+        state = initialise lexer;
         rest = cs;
         tokens = [];
         buffer = [];
         last_accepting = None;
       }
     in
-    lex_run machine initial_state
+    lex_run lexer initial_state
 end

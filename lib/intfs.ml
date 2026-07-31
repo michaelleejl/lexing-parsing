@@ -1,17 +1,17 @@
 type 'a outcome = Success of 'a | Failure
 
-module Ast = struct 
-  module type S = sig 
+module Ast = struct
+  module type S = sig
     type fparam
     type node
-  end 
+  end
 end
 
-module Token = struct 
+module Token = struct
   module type S = sig
     type t
   end
-end 
+end
 
 module Language = struct
   module type S = sig
@@ -27,21 +27,29 @@ module Language = struct
   end
 end
 
+module Vocabulary = struct
+  module type S = sig
+    type input
+    type output
+    type spec 
+    type action = input list -> output
 
-module Inputs = struct 
-  module type S = sig 
-    type t 
-    
-    val compare : t -> t -> int 
-  end 
+    val vocabulary : (spec * action) list
+  end
+end
 
-end 
+module Inputs = struct
+  module type S = sig
+    type t
+
+    val compare : t -> t -> int
+  end
+end
 
 module Tags = struct
   module type S = sig
     type t
     type output
-
     type args
 
     val compare : t -> t -> int
@@ -49,18 +57,20 @@ module Tags = struct
   end
 end
 
-module StackSyms = struct 
-  module type S = sig 
-    type t 
-    val compare : t -> t -> int 
-  end 
+module StackSyms = struct
+  module type S = sig
+    type t
+
+    val compare : t -> t -> int
+  end
 end
 
-module Actions = struct 
-  module type S = sig 
-    type t 
-    val compare : t -> t -> int 
-  end 
+module Actions = struct
+  module type S = sig
+    type t
+
+    val compare : t -> t -> int
+  end
 end
 
 module BNF = struct
