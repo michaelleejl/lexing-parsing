@@ -53,7 +53,15 @@ module Descent (Gram : Grammar.S) = struct
     
   let terminal_to_parser t toks =
     let action = TerminalMap.find t terminal_map in
-    try action toks with Fail -> raise (ParseFail "terminal")
+    try match toks with 
+    | tok::toks' -> 
+      let t' = Gram.token_to_terminal tok in 
+      if t = t' then 
+        (action tok, toks') 
+    else 
+        raise (ParseFail "terminal mismatch")
+    | [] -> raise (ParseFail "expected a terminal")
+    with Fail -> raise (ParseFail "terminal")
 
   let nonterminal_to_parser nt fs toks =
     (List.nth fs (NonterminalMap.find nt nonterminal_map)) toks

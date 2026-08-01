@@ -1,4 +1,5 @@
 open Format
+open Ppx_compare_lib.Builtin
 
 type fparam = string
 
@@ -12,6 +13,7 @@ and node =
   | LetRec of fparam * node * node
   | Plus of node * node
   | Equals of node * node
+   [@@deriving compare]
 
 let rec to_str t =
   match t with

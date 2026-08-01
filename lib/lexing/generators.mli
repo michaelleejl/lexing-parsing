@@ -10,9 +10,9 @@ module Recogniser : sig
 end
 
 module Lexer
-    (Lang : Language.S) (Vocab: Vocabulary.S with type output = Lang.token option and type input = char and type spec = C.t rgx) : sig
-  
-  type token = Lang.token
+    (Vocab : Vocabulary.S with type input = char and type spec = C.t rgx) : sig
+
+  type token = Vocab.token
 
   exception LexFailure of string
 

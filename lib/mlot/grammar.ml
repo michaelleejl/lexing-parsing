@@ -1,34 +1,36 @@
+open Ppx_compare_lib.Builtin
+
 exception Fail
 
 type token = Token.t
-type ast = Ast.node
-
-type terminal =
-  | IDENT
-  | NUM
-  | TRUE
-  | FALSE
-  | FUN
-  | ARROW
-  | LPAREN
-  | RPAREN
-  | PLUS
-  | LET
-  | EQUALS
-  | IN
-  | REC
-[@@deriving compare, equal, hash, to_string]
+type ast = Ast.node [@@deriving compare]
 
 module Terminal = struct
-  type t = terminal [@@deriving compare, equal, hash]
+  type t =
+    | IDENT
+    | NUM
+    | TRUE
+    | FALSE
+    | FUN
+    | ARROW
+    | LPAREN
+    | RPAREN
+    | PLUS
+    | LET
+    | EQUALS
+    | IN
+    | REC
+  [@@deriving compare, to_string]
 end
 
-type nonterminal = E | T' | T | F' | F | G' | G | S
-[@@deriving compare, equal, hash, to_string]
+type terminal = Terminal.t [@@deriving compare, to_string]
 
 module Nonterminal = struct
-  type t = nonterminal [@@deriving compare, equal, hash]
+  type t = E | T' | T | F' | F | G' | G | S
+  [@@deriving compare, to_string]
 end
+
+type nonterminal = Nonterminal.t [@@deriving compare, to_string]
 
 type data =
   | None
@@ -36,16 +38,35 @@ type data =
   | Name of string
   | Expr of ast
   | Exprs of ast list
+   [@@deriving compare]
 
 type parser = token list -> data * token list
 
 let unwrap = function Expr e -> e | _ -> failwith "Must be Expr type"
 
-type t = T of terminal | N of nonterminal
+type t = T of terminal [@stringable.nested ""]
+       | N of nonterminal [@stringable.nested ""]
+[@@deriving compare, to_string]
+
 type reduce = data list -> data
-type shift = token list -> data * token list
+type shift = token -> data
 
 open Ast
+
+  let token_to_terminal (t: token) = match t with
+  | IDENT _ -> Terminal.IDENT
+  | NUM _ -> NUM
+  | TRUE -> TRUE
+  | FALSE -> FALSE
+  | FUN -> FUN
+  | ARROW -> ARROW
+  | LPAREN -> LPAREN
+  | RPAREN -> RPAREN
+  | PLUS -> PLUS
+  | LET -> LET
+  | EQUALS -> EQUALS
+  | IN -> IN
+  | REC -> REC
 
 (* builders shared across several rules *)
 let mk_one e = Expr e
@@ -206,34 +227,35 @@ let prod_s =
     }
 
 (* ---------- terminals --------*)
-let cons_silent term tok =
+let cons_silent tok =
+  let term = token_to_terminal tok in 
   Consumption
     { lhs = term;
       action =
         (function
-        | t :: toks' when t = tok -> (None, toks')
+        | t when t = tok -> None
         | _ -> raise Fail);
     }
 
 let cons_ident =
   Consumption
-    { lhs = IDENT; action = [%act function Token.IDENT x :: toks' -> (Name x, toks')] }
+    { lhs = IDENT; action = [%act function Token.IDENT x  -> Name x] }
 
 let cons_num =
   Consumption
-    { lhs = NUM; action = [%act function Token.NUM n :: toks' -> (Num n, toks')] }
+    { lhs = NUM; action = [%act function Token.NUM n -> Num n] }
 
-let cons_true = cons_silent TRUE Token.TRUE
-let cons_false = cons_silent FALSE Token.FALSE
-let cons_fun = cons_silent FUN Token.FUN
-let cons_arrow = cons_silent ARROW Token.ARROW
-let cons_lparen = cons_silent LPAREN Token.LPAREN
-let cons_rparen = cons_silent RPAREN Token.RPAREN
-let cons_plus = cons_silent PLUS Token.PLUS
-let cons_let = cons_silent LET Token.LET
-let cons_equals = cons_silent EQUALS Token.EQUALS
-let cons_in = cons_silent IN Token.IN
-let cons_rec = cons_silent REC Token.REC
+let cons_true = cons_silent TRUE
+let cons_false = cons_silent FALSE
+let cons_fun = cons_silent FUN
+let cons_arrow = cons_silent ARROW
+let cons_lparen = cons_silent LPAREN
+let cons_rparen = cons_silent RPAREN
+let cons_plus = cons_silent PLUS
+let cons_let = cons_silent LET
+let cons_equals = cons_silent EQUALS
+let cons_in = cons_silent IN
+let cons_rec = cons_silent REC
 
 let grammar : rule list =
   [
@@ -259,3 +281,5 @@ let grammar : rule list =
     cons_in;
     cons_rec;
   ]
+
+  let start = Nonterminal.E 

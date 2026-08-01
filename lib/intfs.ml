@@ -22,11 +22,7 @@ end
 module Tags = struct
   module type S = sig
     type t
-    type output
-    type args
-
     val compare : t -> t -> int
-    val tag_to_action : t -> args -> output
   end
 end
 
@@ -52,34 +48,26 @@ module Grammar = struct
 
     type token
     type ast
-    type terminal
-    type nonterminal
-
-    val string_of_terminal : terminal -> string
-    val string_of_nonterminal : nonterminal -> string
 
     module Terminal : sig 
-      type t = terminal 
-      val equal : t -> t -> bool 
-      val hash : t -> int 
-      val compare : t -> t -> int 
+      type t [@@deriving compare, to_string]
     end 
-    
+    type terminal = Terminal.t [@@deriving compare, to_string]
     module Nonterminal : sig
-      type t = nonterminal
+      type t [@@deriving compare, to_string]
 
-      val equal : t -> t -> bool
-      val hash : t -> int
-      val compare : t -> t -> int
     end
+    type nonterminal = Nonterminal.t [@@deriving compare, to_string]
 
-    type data
+    val token_to_terminal: token -> terminal 
+
+    type data [@@deriving compare]
 
     val unwrap : data -> ast
 
-    type t = T of terminal | N of nonterminal
+    type t = T of terminal | N of nonterminal [@@deriving compare, to_string]
     type reduce = data list -> data
-    type shift = token list -> data * token list
+    type shift = token -> data
 
     type production = { rhs : t list; action : reduce }
 
@@ -88,5 +76,8 @@ module Grammar = struct
       | Consumption of { lhs : terminal; action : shift }
 
     val grammar : rule list
+
+    val start : nonterminal 
+    
   end
 end
