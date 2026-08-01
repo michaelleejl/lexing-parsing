@@ -37,8 +37,8 @@ module Recogniser = struct
     match r (Base.String.to_list s) with Success [] -> true | _ -> false
 end
 
-module Lexer (Lang : Language.S) (Vocab: Vocabulary.S with type output = Lang.token option and type input = char and type spec = C.t rgx) = struct
-  type token = Lang.token
+module Lexer (Vocab : Vocabulary.S with type input = char and type spec = C.t rgx) = struct
+  type token = Vocab.token
   type action = char list -> token option
   type r = Regex.t
   type matcher_state = { matched : char list; rest : char list }

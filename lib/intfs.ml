@@ -1,38 +1,11 @@
 type 'a outcome = Success of 'a | Failure
 
-module Ast = struct
-  module type S = sig
-    type fparam
-    type node
-  end
-end
-
-module Token = struct
-  module type S = sig
-    type t
-  end
-end
-
-module Language = struct
-  module type S = sig
-    type token
-    type ast
-    type fparam
-  end
-
-  module Make (T : Token.S) (A : Ast.S) = struct
-    type token = T.t
-    type ast = A.node
-    type fparam = A.fparam
-  end
-end
-
 module Vocabulary = struct
   module type S = sig
     type input
-    type output
-    type spec 
-    type action = input list -> output
+    type token
+    type spec
+    type action = input list -> token option
 
     val vocabulary : (spec * action) list
   end

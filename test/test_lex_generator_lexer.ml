@@ -1,9 +1,9 @@
 open Lexparse.Lexing.Generators
 open Lexparse.Mlot
 open Printf
-open Lexer (Mlot) (Mlot_Vocabulary)
+open Lexer (Vocabulary)
 
-let print_token x = printf "%s ; " (Mlot_Token.to_str x)
+let print_token x = printf "%s ; " (Token.to_str x)
 
 let%expect_test _ =
   List.iter print_token (lex "x");

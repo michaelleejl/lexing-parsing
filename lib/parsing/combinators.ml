@@ -2,14 +2,11 @@ open Intfs
 
 exception ParseFail of string
 
-module Descent
-    (Lang : Language.S)
-    (Gram : Grammar.S with type token = Lang.token and type ast = Lang.ast) =
-struct
+module Descent (Gram : Grammar.S) = struct
   open Gram
 
-  type token = Lang.token
-  type ast = Lang.ast
+  type token = Gram.token
+  type ast = Gram.ast
 
   let alt p1 p2 toks = try p1 toks with ParseFail _ -> p2 toks
 

@@ -24,7 +24,7 @@ end
 
 open Intfs
 
-module Lexer (Lang : Language.S) (Vocab: Vocabulary.S with type output = Lang.token option and type input = char and type spec = C.t rgx) =
+module Lexer (Vocab : Vocabulary.S with type input = char and type spec = C.t rgx) =
 struct
 
   module LexTag = struct 
@@ -36,7 +36,7 @@ struct
       let x = !next_tag in next_tag := x+1; x
 
     type args = char list 
-    type output = Lang.token option 
+    type output = Vocab.token option
 
     type tag_table = (int, args -> output) Hashtbl.t 
     let compare = compare 
@@ -56,7 +56,7 @@ struct
 
   type tag = LexTag.t
   type action = LexTag.args -> LexTag.output
-  type token = Lang.token
+  type token = Vocab.token
   type r = Regex.t
   type s = TaggedNfa.t
   type t = TaggedDfa.t

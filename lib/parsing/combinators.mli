@@ -1,10 +1,8 @@
 open Intfs
 
-module Descent
-    (Lang : Language.S)
-    (Gram : Grammar.S with type token = Lang.token and type ast = Lang.ast) : sig
-  type token = Lang.token
-  type ast = Lang.ast
+module Descent (Gram : Grammar.S) : sig
+  type token = Gram.token
+  type ast = Gram.ast
 
   val parse : token list -> ast
 end

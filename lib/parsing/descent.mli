@@ -1,7 +1,5 @@
-open Mlot
-
-type token = Mlot_Token.t
-type ast = Mlot_Ast.node
+type token = Mlot.Token.t
+type ast = Mlot.Ast.node
 
 exception ParseFail of string
 
