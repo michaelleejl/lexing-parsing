@@ -73,7 +73,7 @@ module Actions = struct
   end
 end
 
-module BNF = struct
+module Grammar = struct
   module type S = sig
     exception Fail
 
@@ -85,6 +85,13 @@ module BNF = struct
     val string_of_terminal : terminal -> string
     val string_of_nonterminal : nonterminal -> string
 
+    module Terminal : sig 
+      type t = terminal 
+      val equal : t -> t -> bool 
+      val hash : t -> int 
+      val compare : t -> t -> int 
+    end 
+    
     module Nonterminal : sig
       type t = nonterminal
 
@@ -94,15 +101,19 @@ module BNF = struct
     end
 
     type data
-    type parser = token list -> data * token list
 
     val unwrap : data -> ast
 
     type t = T of terminal | N of nonterminal
-    type action = t list * (data list -> data)
-    type actions = action list
+    type reduce = data list -> data
+    type shift = token list -> data * token list
 
-    val terminal_to_parser : terminal -> parser
-    val grammar : (nonterminal * actions) list
+    type production = { rhs : t list; action : reduce }
+
+    type rule =
+      | Production of { lhs : nonterminal; rhss : production list }
+      | Consumption of { lhs : terminal; action : shift }
+
+    val grammar : rule list
   end
 end

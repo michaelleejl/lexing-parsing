@@ -1,25 +1,17 @@
-open Mlot
-open Mlot_Token
-open Mlot_Ast
-
-type token = Mlot_Token.t
-type ast = Mlot_Ast.node
-
 open Intfs
 
 exception ParseFail of string
 
 module Descent
     (Lang : Language.S)
-    (Grammar : BNF.S with type token = Lang.token and type ast = Lang.ast) =
+    (Gram : Grammar.S with type token = Lang.token and type ast = Lang.ast) =
 struct
-  open Grammar
+  open Gram
 
   type token = Lang.token
   type ast = Lang.ast
 
-  let alt p1 p2 toks =
-    try p1 toks with ParseFail _ -> p2 toks
+  let alt p1 p2 toks = try p1 toks with ParseFail _ -> p2 toks
 
   let seq p1 p2 toks =
     let d1, toks' = p1 toks in
@@ -31,23 +23,26 @@ struct
   let empty _ = raise (ParseFail "empty")
   let eps toks = ([], toks)
 
-  let rec iota n =
-    match n with
-    | 0 -> []
-    | n when n > 0 -> (n - 1) :: iota (n - 1)
-    | _ -> failwith "n should be positive"
-
   let rec fix f x = f (fix f) x
 
   let fix_poly fs =
     fix (fun self fs -> List.map (fun f x -> f (self fs) x) fs) fs
 
-  module NonterminalMap = Map.Make (Grammar.Nonterminal)
+  module TerminalMap = Map.Make (Gram.Terminal)
+  module NonterminalMap = Map.Make (Gram.Nonterminal)
 
-  let nonterminals : nonterminal list = List.map fst Grammar.grammar
-  let productions : actions list = List.map snd Grammar.grammar
+  
+  let production_rules, consumption_rules =
+  List.partition_map
+    (function
+      | Production { lhs; rhss } -> Left (lhs, rhss)
+      | Consumption { lhs; action } -> Right (lhs, action))
+    Gram.grammar
 
-  let nt_to_idx =
+  let (nonterminals, productions) : nonterminal list * production list list = 
+    List.split production_rules
+
+  let nonterminal_map =
     let _, map =
       List.fold_left
         (fun (idx, map) -> fun nt -> (idx + 1, NonterminalMap.add nt idx map))
@@ -55,12 +50,16 @@ struct
     in
     map
 
+  let terminal_map = List.fold_left 
+      (fun map -> function (lhs, action) -> TerminalMap.add lhs action map)
+      TerminalMap.empty consumption_rules
+    
   let terminal_to_parser t toks =
-    try Grammar.terminal_to_parser t toks
-    with Grammar.Fail -> raise (ParseFail "terminal")
+    let action = TerminalMap.find t terminal_map in
+    try action toks with Fail -> raise (ParseFail "terminal")
 
   let nonterminal_to_parser nt fs toks =
-    (List.nth fs (NonterminalMap.find nt nt_to_idx)) toks
+    (List.nth fs (NonterminalMap.find nt nonterminal_map)) toks
 
   type accumulator = token list -> data list * token list
 
@@ -73,17 +72,14 @@ struct
   let production_to_accumulator fs ps =
     List.fold_left ( >>& ) eps (List.map (pattern_to_accumulator fs) ps)
 
-  let production_to_parser fs (production, constructor) toks =
-    let accumulator, toks' = production_to_accumulator fs production toks in
-    (constructor accumulator, toks')
+  let production_to_parser fs {rhs;action} toks =
+    let accumulator, toks' = production_to_accumulator fs rhs toks in
+    (action accumulator, toks')
 
-  let productions_to_parsers (pss : Grammar.actions) fs =
-    List.fold_left ( >>| ) empty
-      (List.map (production_to_parser fs) pss)
+  let productions_to_parsers (pss : production list) fs =
+    List.fold_left ( >>| ) empty (List.map (production_to_parser fs) pss)
 
-  let parsers =
-    List.map (productions_to_parsers) productions
-
+  let parsers = List.map productions_to_parsers productions
   let parser = fix_poly parsers
   let start = List.nth parser 0
 

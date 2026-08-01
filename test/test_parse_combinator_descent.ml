@@ -1,5 +1,5 @@
 open Lexparse.Mlot
-open Lexparse.Intfs.BNF
+open Lexparse.Intfs.Grammar
 open Lexparse.Parsing.Combinators
 open Printf
 open Mlot_Token
