@@ -1,58 +1,57 @@
 open Regex
 
-module RegexToNfa (N: Nfa.S with type input = char) = struct 
+module RegexToNfa (N : Nfa.S with type input = char) = struct
   let rec compile r =
-  match r with
-  | Empty -> N.empty
-  | Epsilon -> N.epsilon
-  | Char cs -> N.one_of (C.to_list cs)
-  | Alt (r1, r2) -> N.alt (compile r1) (compile r2)
-  | Seq (r1, r2) -> N.seq (compile r1) (compile r2)
-  | Kleene r -> N.kleene (compile r)
-end 
+    match r with
+    | Empty -> N.empty
+    | Epsilon -> N.epsilon
+    | Char cs -> N.one_of (C.to_list cs)
+    | Alt (r1, r2) -> N.alt (compile r1) (compile r2)
+    | Seq (r1, r2) -> N.seq (compile r1) (compile r2)
+    | Kleene r -> N.kleene (compile r)
+end
 
 module Recogniser = struct
-  module Dfa = Dfa.Make(Char)
-  open Dfa 
+  module Dfa = Dfa.Make (Char)
+  open Dfa
+
   type r = Regex.t
   type t = Dfa.t
 
-  module RegexCompiler = RegexToNfa(Nfa)
+  module RegexCompiler = RegexToNfa (Nfa)
+
   let compile r = RegexCompiler.compile r |> Dfa.determinise
-  let recognise dfa s =  Base.String.to_list s |> Dfa.accept dfa
+  let recognise dfa s = Base.String.to_list s |> Dfa.accept dfa
 end
 
 open Intfs
 
-module Lexer (Vocab : Vocabulary.S with type input = char and type spec = C.t rgx) =
+module Lexer
+    (Vocab : Vocabulary.S with type input = char and type spec = C.t rgx) =
 struct
-
-  module LexTag = struct 
-
-    type t = int 
+  module LexTag = struct
+    type t = int
 
     let next_tag = ref 0
+
     let new_tag () =
-      let x = !next_tag in next_tag := x+1; x
+      let x = !next_tag in
+      next_tag := x + 1;
+      x
 
-    type args = char list 
+    type args = char list
     type output = Vocab.token option
+    type tag_table = (int, args -> output) Hashtbl.t
 
-    type tag_table = (int, args -> output) Hashtbl.t 
-    let compare = compare 
+    let compare = compare
+    let tags_to_actions : tag_table = Hashtbl.create 16
+    let register_tag tag action = Hashtbl.add tags_to_actions tag action
+    let tag_to_action t cs = (Hashtbl.find tags_to_actions t) cs
+  end
 
-    let tags_to_actions: tag_table = Hashtbl.create 16
-
-    let register_tag tag action = 
-      Hashtbl.add tags_to_actions tag action 
-
-    let tag_to_action t cs = (Hashtbl.find tags_to_actions t) cs 
-  end 
-
-
-  module TaggedDfa = Tdfa.Make(Char)(LexTag)
+  module TaggedDfa = Tdfa.Make (Char) (LexTag)
   module TaggedNfa = TaggedDfa.TaggedNfa
-  module Nfa = TaggedNfa.Nfa 
+  module Nfa = TaggedNfa.Nfa
 
   type tag = LexTag.t
   type action = LexTag.args -> LexTag.output
@@ -64,13 +63,13 @@ struct
   exception LexFailure of string
 
   open TaggedDfa
+  module RegexCompiler = RegexToNfa (TaggedNfa.Nfa)
 
-  module RegexCompiler = RegexToNfa(TaggedNfa.Nfa)
-
-  let compile matcher action = 
-    let tag = LexTag.new_tag () in 
+  let compile matcher action =
+    let tag = LexTag.new_tag () in
     LexTag.register_tag tag action;
-    TaggedNfa.lift (RegexCompiler.compile matcher) tag 
+    TaggedNfa.lift (RegexCompiler.compile matcher) tag
+
   let ( >>| ) = TaggedNfa.alt
   let determinise = determinise
 
@@ -107,38 +106,40 @@ struct
             last_accepting = new_accepting;
             state = next_state;
           }
-  and rollback machine state rest tokens buffer last_accepting = 
-    match last_accepting with
-      | None -> raise (LexFailure "no last accepting state")
-      | Some (k, qs) -> advance machine tokens rest buffer k qs
 
-  and advance machine tokens rest buffer k qs = 
+  and rollback machine state rest tokens buffer last_accepting =
+    match last_accepting with
+    | None -> raise (LexFailure "no last accepting state")
+    | Some (k, qs) -> advance machine tokens rest buffer k qs
+
+  and advance machine tokens rest buffer k qs =
     let tag = emit_tag machine qs in
-          match tag with
-          | None -> raise (LexFailure "tag is empty")
-          | Some tag -> (
-              let chars = List.drop k buffer in
-              let buffer = List.take k buffer in
-              let action = (LexTag.tag_to_action tag) (List.rev chars) in
-              let last_accepting = None in
-              let state = initialise machine in
-              let rest = List.rev buffer @ rest in
-              let buffer = [] in
-              match action with
-              | None -> { rest; tokens; buffer; last_accepting; state }
-              | Some t ->
-                  { rest; tokens = t :: tokens; buffer; last_accepting; state })
+    match tag with
+    | None -> raise (LexFailure "tag is empty")
+    | Some tag -> (
+        let chars = List.drop k buffer in
+        let buffer = List.take k buffer in
+        let action = (LexTag.tag_to_action tag) (List.rev chars) in
+        let last_accepting = None in
+        let state = initialise machine in
+        let rest = List.rev buffer @ rest in
+        let buffer = [] in
+        match action with
+        | None -> { rest; tokens; buffer; last_accepting; state }
+        | Some t ->
+            { rest; tokens = t :: tokens; buffer; last_accepting; state })
 
   let rec lex_run machine state =
     match (state.rest, state.buffer) with
     | [], [] -> List.rev state.tokens
     | _, _ -> lex_run machine (lex_step machine state)
 
-  let ls = (List.map (fun (r, a) -> compile r a) Vocab.vocabulary)
-  
-  let empty_lexer = compile (Regex.empty) (fun _ -> raise (LexFailure "empty lexer"))
-  
-  let lexer = List.fold_right (>>|) ls empty_lexer |> determinise
+  let ls = List.map (fun (r, a) -> compile r a) Vocab.vocabulary
+
+  let empty_lexer =
+    compile Regex.empty (fun _ -> raise (LexFailure "empty lexer"))
+
+  let lexer = List.fold_right ( >>| ) ls empty_lexer |> determinise
 
   let lex s =
     let cs = Base.String.to_list s in

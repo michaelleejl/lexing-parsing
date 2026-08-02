@@ -1,6 +1,6 @@
-open Intfs 
+open Intfs
 
-module type S = sig 
+module type S = sig
   type state = int
   type input
 
@@ -32,6 +32,6 @@ module type S = sig
   val is_accepting : t -> state_set -> bool
   val is_rejecting : t -> state_set -> bool
   val step : t -> state_set -> input -> state_set
-end 
+end
 
-module Make (Input: Inputs.S) : S with type input = Input.t 
+module Make (Input : Inputs.S) : S with type input = Input.t

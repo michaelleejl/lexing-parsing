@@ -1,5 +1,4 @@
 open Lexparse.Mlot
-
 open Lexparse.Parsing.Generators
 open Printf
 open Token
@@ -16,8 +15,7 @@ let%expect_test _ =
   [%expect {| Plus(Plus(1, 2), 3) |}]
 
 let%expect_test _ =
-  print_ast
-    (parse [ Token.NUM 1; PLUS; LPAREN; NUM 2; PLUS; NUM 3; RPAREN ]);
+  print_ast (parse [ Token.NUM 1; PLUS; LPAREN; NUM 2; PLUS; NUM 3; RPAREN ]);
   [%expect {| Plus(1, Plus(2, 3)) |}]
 
 let%expect_test _ =

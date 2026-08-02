@@ -19,7 +19,6 @@ module Descent (Gram : Grammar.S) = struct
   let ( >>& ) = seq
   let empty _ = raise (ParseFail "empty")
   let eps toks = ([], toks)
-
   let rec fix f x = f (fix f) x
 
   let fix_poly fs =
@@ -28,15 +27,14 @@ module Descent (Gram : Grammar.S) = struct
   module TerminalMap = Map.Make (Gram.Terminal)
   module NonterminalMap = Map.Make (Gram.Nonterminal)
 
-  
   let production_rules, consumption_rules =
-  List.partition_map
-    (function
-      | Production { lhs; rhss } -> Left (lhs, rhss)
-      | Consumption { lhs; action } -> Right (lhs, action))
-    Gram.grammar
+    List.partition_map
+      (function
+        | Production { lhs; rhss } -> Left (lhs, rhss)
+        | Consumption { lhs; action } -> Right (lhs, action))
+      Gram.grammar
 
-  let (nonterminals, productions) : nonterminal list * production list list = 
+  let (nonterminals, productions) : nonterminal list * production list list =
     List.split production_rules
 
   let nonterminal_map =
@@ -47,20 +45,20 @@ module Descent (Gram : Grammar.S) = struct
     in
     map
 
-  let terminal_map = List.fold_left 
-      (fun map -> function (lhs, action) -> TerminalMap.add lhs action map)
+  let terminal_map =
+    List.fold_left
+      (fun map -> function lhs, action -> TerminalMap.add lhs action map)
       TerminalMap.empty consumption_rules
-    
+
   let terminal_to_parser t toks =
     let action = TerminalMap.find t terminal_map in
-    try match toks with 
-    | tok::toks' -> 
-      let t' = Gram.token_to_terminal tok in 
-      if t = t' then 
-        (action tok, toks') 
-    else 
-        raise (ParseFail "terminal mismatch")
-    | [] -> raise (ParseFail "expected a terminal")
+    try
+      match toks with
+      | tok :: toks' ->
+          let t' = Gram.token_to_terminal tok in
+          if t = t' then (action tok, toks')
+          else raise (ParseFail "terminal mismatch")
+      | [] -> raise (ParseFail "expected a terminal")
     with Fail -> raise (ParseFail "terminal")
 
   let nonterminal_to_parser nt fs toks =
@@ -77,7 +75,7 @@ module Descent (Gram : Grammar.S) = struct
   let production_to_accumulator fs ps =
     List.fold_left ( >>& ) eps (List.map (pattern_to_accumulator fs) ps)
 
-  let production_to_parser fs {rhs;action} toks =
+  let production_to_parser fs { rhs; action } toks =
     let accumulator, toks' = production_to_accumulator fs rhs toks in
     (action accumulator, toks')
 

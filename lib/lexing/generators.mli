@@ -1,5 +1,5 @@
 open Intfs
-open Regex 
+open Regex
 
 module Recogniser : sig
   type r = Regex.t
@@ -11,7 +11,6 @@ end
 
 module Lexer
     (Vocab : Vocabulary.S with type input = char and type spec = C.t rgx) : sig
-
   type token = Vocab.token
 
   exception LexFailure of string

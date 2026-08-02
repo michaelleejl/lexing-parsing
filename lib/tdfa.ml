@@ -2,13 +2,13 @@ open Intfs
 
 module type S = sig
   type tag
-  type input 
+  type input
 
   module TaggedNfa : Tnfa.S with type tag = tag and type input = input
   module StateSet : Set.S with type elt = TaggedNfa.StateSet.elt
   module StateMap : Map.S with type key = int
   module InputSet : Set.S with type elt = TaggedNfa.InputSet.elt
-  module InputMap : Map.S with type key = input 
+  module InputMap : Map.S with type key = input
 
   type state = StateSet.elt
   type state_set = StateSet.t
@@ -34,7 +34,7 @@ module type S = sig
   val emit_tag : t -> state -> tag option
 end
 
-module Make (Input: Inputs.S) (Tag : Tags.S) = struct
+module Make (Input : Inputs.S) (Tag : Tags.S) = struct
   type input = Input.t
   type tag = Tag.t
 
@@ -45,6 +45,7 @@ module Make (Input: Inputs.S) (Tag : Tags.S) = struct
   module StateMap = Map.Make (Int)
   module InputSet = TaggedNfa.InputSet
   module InputMap = Map.Make (Input)
+
   type state = StateSet.elt
   type state_set = StateSet.t
   type input_set = InputSet.t

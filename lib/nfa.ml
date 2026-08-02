@@ -1,6 +1,6 @@
-open Intfs 
+open Intfs
 
-module type S = sig 
+module type S = sig
   type state = int
   type input
 
@@ -32,14 +32,15 @@ module type S = sig
   val is_accepting : t -> state_set -> bool
   val is_rejecting : t -> state_set -> bool
   val step : t -> state_set -> input -> state_set
-end 
+end
 
-module Make(Input: Inputs.S) = struct 
+module Make (Input : Inputs.S) = struct
   module State = Int
   module StateSet = Set.Make (State)
   module InputSet = Set.Make (Input)
 
-  type input = Input.t 
+  type input = Input.t
+
   module InputOpt = struct
     type t = input option
 
@@ -149,7 +150,7 @@ module Make(Input: Inputs.S) = struct
     let finals = StateSet.union n0'.finals n1'.finals in
     let next' = fun s -> if s mod 2 = 0 then n0'.next s else n1'.next s in
     let next =
-    fun s ->
+     fun s ->
       if s = 0 then InputOptMap.singleton None initials
       else
         let m = next' s in
@@ -196,7 +197,8 @@ module Make(Input: Inputs.S) = struct
             let m = n'.next s in
             if StateSet.mem s n'.finals then
               InputOptMap.union merge
-                (InputOptMap.singleton None (StateSet.of_list [ n'.initial; 1 ]))
+                (InputOptMap.singleton None
+                   (StateSet.of_list [ n'.initial; 1 ]))
                 m
             else m);
       alphabet = n.alphabet;
@@ -236,4 +238,4 @@ module Make(Input: Inputs.S) = struct
   let accept n xs =
     let es = List.fold_left (step n) (initialise n) xs in
     is_accepting n es
-end 
+end

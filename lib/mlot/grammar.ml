@@ -26,8 +26,7 @@ end
 type terminal = Terminal.t [@@deriving compare, to_string]
 
 module Nonterminal = struct
-  type t = E | T' | T | F' | F | G' | G | S
-  [@@deriving compare, to_string]
+  type t = E | T' | T | F' | F | G' | G | S [@@deriving compare, to_string]
 end
 
 type nonterminal = Nonterminal.t [@@deriving compare, to_string]
@@ -38,14 +37,15 @@ type data =
   | Name of string
   | Expr of ast
   | Exprs of ast list
-   [@@deriving compare]
+[@@deriving compare]
 
 type parser = token list -> data * token list
 
 let unwrap = function Expr e -> e | _ -> failwith "Must be Expr type"
 
-type t = T of terminal [@stringable.nested ""]
-       | N of nonterminal [@stringable.nested ""]
+type t =
+  | T of terminal [@stringable.nested ""]
+  | N of nonterminal [@stringable.nested ""]
 [@@deriving compare, to_string]
 
 type reduce = data list -> data
@@ -53,7 +53,8 @@ type shift = token -> data
 
 open Ast
 
-  let token_to_terminal (t: token) = match t with
+let token_to_terminal (t : token) =
+  match t with
   | IDENT _ -> Terminal.IDENT
   | NUM _ -> NUM
   | TRUE -> TRUE
@@ -74,61 +75,50 @@ let mk_nil = Exprs []
 let mk_cons e es = Exprs (e :: es)
 let mk_op op e es = Expr (List.fold_left op e es)
 
-type production = {
-  rhs: t list ;
-  action : reduce
-}
+type production = { rhs : t list; action : reduce }
 
-type rule = Production of {
-  lhs: nonterminal;
-  rhss: production list;
-} | Consumption of {
-  lhs: terminal;
-  action: shift
-}
+type rule =
+  | Production of { lhs : nonterminal; rhss : production list }
+  | Consumption of { lhs : terminal; action : shift }
 
 (* ---------- E ----------------*)
 (* E ::= fun x -> E*)
 let mk_fun x e = Expr (Fun (x, e))
-let prod_e_fun = {
-  rhs = [ T FUN; T IDENT; T ARROW; N E ];
-  action = [%act function [ _; Name x; _; Expr e ] -> mk_fun x e]
-}
+
+let prod_e_fun =
+  {
+    rhs = [ T FUN; T IDENT; T ARROW; N E ];
+    action = [%act function [ _; Name x; _; Expr e ] -> mk_fun x e];
+  }
 
 (*   | let x = E in E*)
 let mk_let x e1 e2 = Expr (Let (x, e1, e2))
-let prod_e_let = {
-  rhs = [ T LET; T IDENT; T EQUALS; N E; T IN; N E ];
-  action = [%act
-    function [ _; Name x; _; Expr e1; _; Expr e2 ] -> mk_let x e1 e2
-  ]
-}
+
+let prod_e_let =
+  {
+    rhs = [ T LET; T IDENT; T EQUALS; N E; T IN; N E ];
+    action =
+      [%act function [ _; Name x; _; Expr e1; _; Expr e2 ] -> mk_let x e1 e2];
+  }
 
 (*   | let rec x = E in E *)
 let mk_letrec x e1 e2 = Expr (LetRec (x, e1, e2))
-let prod_e_let_rec = {
-  rhs = [ T LET; T REC; T IDENT; T EQUALS; N E; T IN; N E ];
-  action =
-    [%act
-      function
-      | [ _; _; Name x; _; Expr e1; _; Expr e2 ] -> mk_letrec x e1 e2]
-}
+
+let prod_e_let_rec =
+  {
+    rhs = [ T LET; T REC; T IDENT; T EQUALS; N E; T IN; N E ];
+    action =
+      [%act
+        function [ _; _; Name x; _; Expr e1; _; Expr e2 ] -> mk_letrec x e1 e2];
+  }
 
 (*   | T *)
-let prod_e_t = {
-  rhs = [ N T ];
-  action = [%act function [ Expr e ] -> mk_one e]
-}
+let prod_e_t =
+  { rhs = [ N T ]; action = [%act function [ Expr e ] -> mk_one e] }
 
-let prod_e = Production
-      { lhs = E;
-        rhss =
-          [
-            prod_e_fun;
-            prod_e_let;
-            prod_e_let_rec;
-            prod_e_t;
-          ] }
+let prod_e =
+  Production
+    { lhs = E; rhss = [ prod_e_fun; prod_e_let; prod_e_let_rec; prod_e_t ] }
 
 (* ---------- T ----------------*)
 (* T ::= F T' *)
@@ -136,16 +126,20 @@ let eq e1 e2 = Equals (e1, e2)
 let mk_eq e es = mk_op eq e es
 
 let prod_t_f =
-  { rhs = [ N F; N T' ];
-    action = [%act function [ Expr e; Exprs es ] -> mk_eq e es] }
+  {
+    rhs = [ N F; N T' ];
+    action = [%act function [ Expr e; Exprs es ] -> mk_eq e es];
+  }
 
 let prod_t = Production { lhs = T; rhss = [ prod_t_f ] }
 
 (* ---------- T' ---------------*)
 (* T' ::= = F T' *)
 let prod_t'_equals =
-  { rhs = [ T EQUALS; N F; N T' ];
-    action = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es] }
+  {
+    rhs = [ T EQUALS; N F; N T' ];
+    action = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
+  }
 
 (*    | eps *)
 let prod_t'_eps = { rhs = []; action = [%act function [] -> mk_nil] }
@@ -157,16 +151,20 @@ let pl e1 e2 = Plus (e1, e2)
 let mk_plus e es = mk_op pl e es
 
 let prod_f_g =
-  { rhs = [ N G; N F' ];
-    action = [%act function [ Expr e; Exprs es ] -> mk_plus e es] }
+  {
+    rhs = [ N G; N F' ];
+    action = [%act function [ Expr e; Exprs es ] -> mk_plus e es];
+  }
 
 let prod_f = Production { lhs = F; rhss = [ prod_f_g ] }
 
 (* ---------- F' ---------------*)
 (* F' ::= + G F' *)
 let prod_f'_plus =
-  { rhs = [ T PLUS; N G; N F' ];
-    action = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es] }
+  {
+    rhs = [ T PLUS; N G; N F' ];
+    action = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
+  }
 
 (*    | eps *)
 let prod_f'_eps = { rhs = []; action = [%act function [] -> mk_nil] }
@@ -178,16 +176,20 @@ let ap e1 e2 = App (e1, e2)
 let mk_app e es = mk_op ap e es
 
 let prod_g_s =
-  { rhs = [ N S; N G' ];
-    action = [%act function [ Expr e; Exprs es ] -> mk_app e es] }
+  {
+    rhs = [ N S; N G' ];
+    action = [%act function [ Expr e; Exprs es ] -> mk_app e es];
+  }
 
 let prod_g = Production { lhs = G; rhss = [ prod_g_s ] }
 
 (* ---------- G' ---------------*)
 (* G' ::= S G' *)
 let prod_g'_s =
-  { rhs = [ N S; N G' ];
-    action = [%act function [ Expr e; Exprs es ] -> mk_cons e es] }
+  {
+    rhs = [ N S; N G' ];
+    action = [%act function [ Expr e; Exprs es ] -> mk_cons e es];
+  }
 
 (*    | eps *)
 let prod_g'_eps = { rhs = []; action = [%act function [] -> mk_nil] }
@@ -217,33 +219,34 @@ let prod_s_false =
 
 (*   | ( E ) *)
 let prod_s_lparen =
-  { rhs = [ T LPAREN; N E; T RPAREN ];
-    action = [%act function [ _; Expr e; _ ] -> mk_one e] }
+  {
+    rhs = [ T LPAREN; N E; T RPAREN ];
+    action = [%act function [ _; Expr e; _ ] -> mk_one e];
+  }
 
 let prod_s =
   Production
-    { lhs = S;
-      rhss = [ prod_s_ident; prod_s_num; prod_s_true; prod_s_false; prod_s_lparen ]
+    {
+      lhs = S;
+      rhss =
+        [ prod_s_ident; prod_s_num; prod_s_true; prod_s_false; prod_s_lparen ];
     }
 
 (* ---------- terminals --------*)
 let cons_silent tok =
-  let term = token_to_terminal tok in 
+  let term = token_to_terminal tok in
   Consumption
-    { lhs = term;
-      action =
-        (function
-        | t when t = tok -> None
-        | _ -> raise Fail);
+    {
+      lhs = term;
+      action = (function t when t = tok -> None | _ -> raise Fail);
     }
 
 let cons_ident =
   Consumption
-    { lhs = IDENT; action = [%act function Token.IDENT x  -> Name x] }
+    { lhs = IDENT; action = [%act function Token.IDENT x -> Name x] }
 
 let cons_num =
-  Consumption
-    { lhs = NUM; action = [%act function Token.NUM n -> Num n] }
+  Consumption { lhs = NUM; action = [%act function Token.NUM n -> Num n] }
 
 let cons_true = cons_silent TRUE
 let cons_false = cons_silent FALSE
@@ -282,4 +285,4 @@ let grammar : rule list =
     cons_rec;
   ]
 
-  let start = Nonterminal.E 
+let start = Nonterminal.E

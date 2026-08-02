@@ -1,10 +1,9 @@
-open Intfs 
+open Intfs
 
-module type S = sig 
-  
-  type input 
-  module Nfa : Nfa.S with type input = input 
+module type S = sig
+  type input
 
+  module Nfa : Nfa.S with type input = input
   module StateSet : Set.S with type elt = Nfa.StateSet.elt
   module StateMap : Map.S with type key = int
   module InputSet : Set.S with type elt = Nfa.InputSet.elt
@@ -25,13 +24,12 @@ module type S = sig
 
   val determinise : Nfa.t -> t
   val accept : t -> input list -> bool
+end
 
-end 
+module Make (Input : Inputs.S) = struct
+  type input = Input.t
 
-module Make (Input: Inputs.S) = struct 
-  type input = Input.t 
-
-  module Nfa = Nfa.Make(Input)
+  module Nfa = Nfa.Make (Input)
   module StateSet = Nfa.StateSet
   module StateMap = Map.Make (Int)
   module InputSet = Nfa.InputSet
@@ -43,6 +41,7 @@ module Make (Input: Inputs.S) = struct
   type transition = state InputMap.t
 
   let failure = 0
+
   type t = {
     states : state_set;
     initial : state;
@@ -51,9 +50,8 @@ module Make (Input: Inputs.S) = struct
     alphabet : input_set;
   }
 
-  let find_next_state next q c = 
-    try InputMap.find c (next q) with 
-    Not_found -> failure 
+  let find_next_state next q c =
+    try InputMap.find c (next q) with Not_found -> failure
 
   let add_transition (source, c, target) transitions =
     match StateMap.find source transitions with
@@ -65,7 +63,8 @@ module Make (Input: Inputs.S) = struct
     let nfa_initial = Nfa.initialise n in
     let module M = Map.Make (Nfa.StateSet) in
     let gen_state =
-      let next_state = ref 1 in (*0 a rejecting state*)
+      let next_state = ref 1 in
+      (*0 a rejecting state*)
       fun () ->
         let s = !next_state in
         next_state := s + 1;
@@ -85,7 +84,9 @@ module Make (Input: Inputs.S) = struct
           let find_next_state = Nfa.step n nfa_state in
           let builder c (m, s, t, f) =
             let next_state = find_next_state c in
-            let dfa_next_state, m', s', t', f' = build next_state (m, s, t, f) in
+            let dfa_next_state, m', s', t', f' =
+              build next_state (m, s, t, f)
+            in
             let t'' = add_transition (dfa_state, c, dfa_next_state) t' in
             let s'' = StateSet.add dfa_next_state s' in
             (m', s'', t'', f')
@@ -97,7 +98,7 @@ module Make (Input: Inputs.S) = struct
           (dfa_state, mapping', states', transitions', finals')
     in
     let initial_map = StateMap.add 0 InputMap.empty StateMap.empty in
-    let initial_states = StateSet.of_list [0] in
+    let initial_states = StateSet.of_list [ 0 ] in
     let initial, _, states, transitions, finals =
       build nfa_initial (M.empty, initial_states, initial_map, StateSet.empty)
     in
@@ -109,6 +110,8 @@ module Make (Input: Inputs.S) = struct
 
   let accept d xs =
     let next_state = find_next_state d.next in
-    let final = List.fold_left (fun q -> fun c -> next_state q c) d.initial xs in
-    StateSet.mem final d.finals 
-end 
+    let final =
+      List.fold_left (fun q -> fun c -> next_state q c) d.initial xs
+    in
+    StateSet.mem final d.finals
+end

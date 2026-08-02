@@ -1,7 +1,7 @@
 open Intfs
 
 module type S = sig
-  type input 
+  type input
   type tag
 
   module TaggedNfa : Tnfa.S with type tag = tag and type input = input
@@ -34,4 +34,5 @@ module type S = sig
   val emit_tag : t -> state -> tag option
 end
 
-module Make (Input: Inputs.S) (Tag : Tags.S) : S with type tag = Tag.t and type input = Input.t 
+module Make (Input : Inputs.S) (Tag : Tags.S) :
+  S with type tag = Tag.t and type input = Input.t
