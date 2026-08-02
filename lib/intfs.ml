@@ -63,6 +63,7 @@ module Grammar = struct
     type nonterminal = Nonterminal.t [@@deriving compare, to_string]
 
     val token_to_terminal : token -> terminal
+    val eof : token
 
     type data [@@deriving compare]
 

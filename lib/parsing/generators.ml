@@ -239,7 +239,10 @@ module General (Gram : Grammar.S) = struct
         ParseStack.empty )
     in
     let initial_state =
-      { tokens; hypotheses = ParseHypotheses.singleton initial_hypothesis }
+      {
+        tokens = tokens @ [ Gram.eof ];
+        hypotheses = ParseHypotheses.singleton initial_hypothesis;
+      }
     in
     parse_run parser initial_state
 end

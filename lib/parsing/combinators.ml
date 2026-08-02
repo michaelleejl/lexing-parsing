@@ -87,5 +87,7 @@ module General (Gram : Grammar.S) = struct
   let start = List.nth parser (NonterminalMap.find Gram.start nonterminal_map)
 
   let parse ts =
-    match start ts with e, [] -> unwrap e | _ -> raise (ParseFail "fail")
+    match start (ts @ [ Gram.eof ]) with
+    | e, [] -> unwrap e
+    | _ -> raise (ParseFail "fail")
 end

@@ -14,6 +14,7 @@ type t =
   | EQUALS
   | IN
   | REC
+  | EOF
 
 let to_str t =
   match t with
@@ -30,3 +31,4 @@ let to_str t =
   | EQUALS -> "EQUALS"
   | IN -> "IN"
   | REC -> "REC"
+  | EOF -> "EOF"

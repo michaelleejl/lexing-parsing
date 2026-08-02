@@ -21,6 +21,7 @@ module Common = struct
       | EQUALS
       | IN
       | REC
+      | EOF
     [@@deriving compare, to_string]
   end
 
@@ -54,6 +55,10 @@ module Common = struct
     | EQUALS -> EQUALS
     | IN -> IN
     | REC -> REC
+    | EOF -> EOF
+
+  (* appended by `parse`; no lexer rule ever produces it *)
+  let eof = Token.EOF
 
   open Ast
 
@@ -79,7 +84,8 @@ module General = struct
   include Common
 
   module Nonterminal = struct
-    type t = E | T' | T | F' | F | G' | G | S [@@deriving compare, to_string]
+    type t = Start | E | T' | T | F' | F | G' | G | S
+    [@@deriving compare, to_string]
   end
 
   type nonterminal = Nonterminal.t [@@deriving compare, to_string]
@@ -244,6 +250,17 @@ module General = struct
   let cons_equals = cons_silent EQUALS
   let cons_in = cons_silent IN
   let cons_rec = cons_silent REC
+  let cons_eof = cons_silent EOF
+
+  (* ---------- start ------------*)
+  (* Start ::= E EOF *)
+  let prod_start_e =
+    {
+      rhs = [ N E; T EOF ];
+      action = [%act function [ Expr e; _ ] -> mk_one e];
+    }
+
+  let prod_start = Production { lhs = Start; rhss = [ prod_start_e ] }
 
   let other_rules : rule list =
     [
@@ -267,17 +284,18 @@ module General = struct
       cons_equals;
       cons_in;
       cons_rec;
+      cons_eof;
     ]
 
-  let grammar : rule list = prod_e :: other_rules
-  let start = Nonterminal.E
+  let grammar : rule list = prod_start :: prod_e :: other_rules
+  let start = Nonterminal.Start
 end
 
 module LeftFactored = struct
   include Common
 
   module Nonterminal = struct
-    type t = E | E' | T' | T | F' | F | G' | G | S
+    type t = Start | E | E' | T' | T | F' | F | G' | G | S
     [@@deriving compare, to_string]
   end
 
@@ -457,9 +475,21 @@ module LeftFactored = struct
   let cons_equals = cons_silent EQUALS
   let cons_in = cons_silent IN
   let cons_rec = cons_silent REC
+  let cons_eof = cons_silent EOF
+
+  (* ---------- start ------------*)
+  (* Start ::= E EOF *)
+  let prod_start_e =
+    {
+      rhs = [ N E; T EOF ];
+      action = [%act function [ Expr e; _ ] -> mk_one e];
+    }
+
+  let prod_start = Production { lhs = Start; rhss = [ prod_start_e ] }
 
   let grammar : rule list =
     [
+      prod_start;
       prod_e;
       prod_e';
       prod_t;
@@ -482,7 +512,8 @@ module LeftFactored = struct
       cons_equals;
       cons_in;
       cons_rec;
+      cons_eof;
     ]
 
-  let start = Nonterminal.E
+  let start = Nonterminal.Start
 end
