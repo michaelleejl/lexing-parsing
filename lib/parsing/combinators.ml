@@ -84,7 +84,7 @@ module Descent (Gram : Grammar.S) = struct
 
   let parsers = List.map productions_to_parsers productions
   let parser = fix_poly parsers
-  let start = List.nth parser 0
+  let start = List.nth parser (NonterminalMap.find Gram.start nonterminal_map)
 
   let parse ts =
     match start ts with e, [] -> unwrap e | _ -> raise (ParseFail "fail")
