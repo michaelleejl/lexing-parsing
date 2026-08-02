@@ -1,6 +1,6 @@
 open Printf
 open Lexparse.Mlot
-open Lexparse.Parsing.Descent
+open Lexparse.Parsing.Descent.General
 
 let print_ast x = Ast.to_str x |> printf "%s"
 

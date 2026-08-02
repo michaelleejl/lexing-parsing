@@ -1,6 +1,7 @@
-type token = Mlot.Token.t
-type ast = Mlot.Ast.node
+open Intfs
+module General : sig
+  type token = Mlot.Token.t 
+  type ast = Mlot.Ast.node
 
-exception ParseFail of string
-
-val parse : token list -> ast
+  val parse : token list -> ast
+end

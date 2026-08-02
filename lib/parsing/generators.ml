@@ -3,7 +3,7 @@ open Ppx_compare_lib.Builtin
 
 exception ParseFail of string
 
-module Descent (Gram : Grammar.S) = struct
+module General (Gram : Grammar.S) = struct
   open Gram
 
   type token = Gram.token

@@ -2,7 +2,7 @@ open Lexparse.Mlot
 open Lexparse.Parsing.Generators
 open Printf
 open Token
-open Descent (Grammar)
+open General (Grammar)
 
 let print_ast x = Ast.to_str x |> printf "%s"
 
