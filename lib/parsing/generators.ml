@@ -80,10 +80,12 @@ module General (Gram : Grammar.S) = struct
     type t = Match of terminal | Predict of Reductions.id [@@deriving compare]
     type action = token -> ParseStack.t -> ParseStack.t
 
-    let prod_action production reduce =
+    (* `syms` is the predicted production's rhs: the symbols the new frame
+       is still waiting on *)
+    let prod_action syms reduce =
      fun _token ->
       fun s ->
-       let f = ParseStack.create_frame production reduce in
+       let f = ParseStack.create_frame syms reduce in
        ParseStack.push s f
 
     let cons_action shift =
@@ -97,10 +99,10 @@ module General (Gram : Grammar.S) = struct
       Hashtbl.add tag_to_action_tbl tag act;
       tag
 
-    let register_prod production reduce =
+    let register_prod syms reduce =
       let prod_id = Reductions.register reduce in
       let tag = Predict prod_id in
-      let act = prod_action production prod_id in
+      let act = prod_action syms prod_id in
       Hashtbl.add tag_to_action_tbl tag act;
       tag
 
@@ -175,9 +177,9 @@ module General (Gram : Grammar.S) = struct
 
   module TransitionSet = Set.Make (Transition)
 
-  let nonterminal_to_transition nonterminal production reduce state =
-    let tag = ParseTag.register_prod production reduce in
-    ((None, N nonterminal), (state, production, tag))
+  let nonterminal_to_transition nonterminal syms reduce state =
+    let tag = ParseTag.register_prod syms reduce in
+    ((None, N nonterminal), (state, syms, tag))
 
   let terminal_to_transition terminal shift state =
     let tag = ParseTag.register_cons terminal shift in

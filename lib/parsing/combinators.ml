@@ -68,12 +68,12 @@ module General (Gram : Grammar.S) = struct
 
   let parser_to_accumulator (x, y) = ([ x ], y)
 
-  let pattern_to_accumulator fs = function
+  let sym_to_accumulator fs = function
     | T t -> Fun.compose parser_to_accumulator (terminal_to_parser t)
     | N n -> Fun.compose parser_to_accumulator (nonterminal_to_parser n fs)
 
-  let production_to_accumulator fs ps =
-    List.fold_left ( >>& ) eps (List.map (pattern_to_accumulator fs) ps)
+  let production_to_accumulator fs syms =
+    List.fold_left ( >>& ) eps (List.map (sym_to_accumulator fs) syms)
 
   let production_to_parser fs { rhs; action } toks =
     let accumulator, toks' = production_to_accumulator fs rhs toks in
