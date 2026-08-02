@@ -1,8 +1,6 @@
 open Intfs
-
 open Mlot.Token
 open Mlot.Ast
-
 
 exception ParseFail of string
 
@@ -80,4 +78,4 @@ module General = struct
 
   let parse ts =
     match e ts with expr, [] -> expr | _ -> raise (ParseFail "failed")
-end 
+end
