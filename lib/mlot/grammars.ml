@@ -262,8 +262,10 @@ module General = struct
 
   let prod_start = Production { lhs = Start; rhss = [ prod_start_e ] }
 
-  let other_rules : rule list =
+  let grammar : rule list =
     [
+      prod_start;
+      prod_e;
       prod_t;
       prod_t';
       prod_f;
@@ -287,7 +289,6 @@ module General = struct
       cons_eof;
     ]
 
-  let grammar : rule list = prod_start :: prod_e :: other_rules
   let start = Nonterminal.Start
 end
 
