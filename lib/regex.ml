@@ -116,11 +116,11 @@ module Parse = struct
 
   let rec parse_atom s =
     match s with
-    | '(' :: rest -> begin
-        match parse_alt rest with
+    | '(' :: rest ->
+        begin match parse_alt rest with
         | r, ')' :: rest' -> Some (r, rest')
         | r, rest' -> None
-      end
+        end
     | '[' :: rest -> Some (parse_bracketed rest)
     | [] | (')' | '|' | '*' | '+' | '?') :: _ -> None
     | '.' :: cs -> Some (Any, cs)

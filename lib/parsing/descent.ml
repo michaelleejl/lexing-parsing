@@ -12,20 +12,20 @@ module General = struct
     | FUN :: IDENT x :: ARROW :: toks ->
         let body, toks' = e toks in
         (Fun (x, body), toks')
-    | LET :: IDENT x :: EQUALS :: toks -> begin
-        match e toks with
+    | LET :: IDENT x :: EQUALS :: toks ->
+        begin match e toks with
         | arg, IN :: toks' ->
             let body, toks'' = e toks' in
             (Let (x, arg, body), toks'')
         | _ -> raise (ParseFail "LET")
-      end
-    | LET :: REC :: IDENT x :: EQUALS :: toks -> begin
-        match e toks with
+        end
+    | LET :: REC :: IDENT x :: EQUALS :: toks ->
+        begin match e toks with
         | arg, IN :: toks' ->
             let body, toks'' = e toks' in
             (LetRec (x, arg, body), toks'')
         | _ -> raise (ParseFail "LETREC")
-      end
+        end
     | toks -> t toks
 
   and t' = function
@@ -69,11 +69,11 @@ module General = struct
     | NUM n :: toks -> (Num n, toks)
     | TRUE :: toks -> (Bool true, toks)
     | FALSE :: toks -> (Bool false, toks)
-    | LPAREN :: toks -> begin
-        match e toks with
+    | LPAREN :: toks ->
+        begin match e toks with
         | term, RPAREN :: toks' -> (term, toks')
         | _ -> raise (ParseFail "S LPAREN")
-      end
+        end
     | _ -> raise (ParseFail "S")
 
   let parse ts =
