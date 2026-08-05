@@ -122,9 +122,9 @@ struct
     | Failure -> raise LexFailure
 
   let rec lex_run l state =
-    match lex_step l state with
+    match state with
     | { lexed; rest = [] } -> List.rev lexed
-    | { lexed; rest } as state -> lex_run l state
+    | { lexed; rest } as state -> lex_run l (lex_step l state)
 
   let ls = List.map (fun (r, a) -> interpret r a) Vocab.vocabulary
   let empty_lexer = interpret Regex.empty (fun _ -> raise LexFailure)
