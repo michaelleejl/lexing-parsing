@@ -109,7 +109,7 @@ module GrammarAnalysis (Gram : Grammar.S) = struct
       | N n -> NTMap.find n table
 
     let rec syms = function
-      | [] -> TESet.empty
+      | [] -> TESet.singleton Eps
       | s :: ss ->
           let first_sym = sym s in
           if Nullable.sym s then TESet.union (strip first_sym) (syms ss)
