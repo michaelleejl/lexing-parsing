@@ -114,7 +114,7 @@ module Lookahead (Gram : Grammar.S) = struct
           FirstSet.union (strip_eps first) (first_syms syms)
         else first
 
-  let follow =
+  let follow_nonterms =
     let union_sets _ ts1 ts2 = Some (TSet.union ts1 ts2) in
     let follow_rhs follows lhs { rhs } =
       let rec follow_seq = function
@@ -152,4 +152,7 @@ module Lookahead (Gram : Grammar.S) = struct
         NTMap.empty nonterminals
     in
     fix (NTMap.equal TSet.equal) follow_step initial
-end
+  
+  let follow nonterm = NTMap.find nonterm follow_nonterms 
+  
+  end
