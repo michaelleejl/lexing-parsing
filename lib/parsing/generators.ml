@@ -81,13 +81,12 @@ module General (Gram : Grammar.S) = struct
     type action = token -> ParseStack.t -> ParseStack.t
 
     let prod_action syms reduce =
-     fun _token ->
-      fun s ->
+     fun _ s ->
        let f = ParseStack.create_frame syms reduce in
        ParseStack.push s f
 
     let cons_action shift =
-     fun token -> fun s -> ParseStack.fill s (shift token)
+     fun token s -> ParseStack.fill s (shift token)
 
     let tag_to_action_tbl : (t, action) Hashtbl.t = Hashtbl.create 32
 
@@ -207,8 +206,7 @@ module General (Gram : Grammar.S) = struct
     in
     let transitions =
       TransitionSet.fold
-        (fun (input, output) ->
-          fun transitions ->
+        (fun (input, output) transitions ->
            let existing =
              match TaggedPda.Transition.find_opt input transitions with
              | Some outputs -> outputs
