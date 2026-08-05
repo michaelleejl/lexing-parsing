@@ -1,15 +1,6 @@
 open Printf
 open Lexparse.Regex
 
-(* One corpus, run against both recognisers. It doubles as a test of [r]: every
-   regex here is written in concrete syntax, so a change to the parser in
-   regex.ml shows up as a change in what is accepted. *)
-
-(* the whole mlot vocabulary, composed exactly as the recogniser tests had it:
-   one token, then any number of whitespace-separated tokens. The parentheses
-   in [operators] must be escaped, or they group instead of matching — which
-   would make [recognise_one] nullable and let a run of whitespace stand in
-   for a token. *)
 let keywords = r "let|rec|in|fun|true|false"
 let operators = r {|=|\+|->|\(|\)|}
 let ident = r "[a-zA-Z][a-zA-Z0-9]*"
@@ -30,7 +21,6 @@ let cases =
     ("(a|b)*c", r "(a|b)*c", [ "c"; "ac"; "abbac"; "ab"; "" ]);
     ("[a-c]", r "[a-c]", [ "a"; "b"; "c"; "d"; "" ]);
     ("[a-c]*", r "[a-c]*", [ ""; "abc"; "cba"; "abd" ]);
-    (* the pieces the mlot vocabulary is built from *)
     ( "let|rec|in|fun|true|false",
       r "let|rec|in|fun|true|false",
       [ "let"; "rec"; "in"; "fun"; "true"; "false"; "letrec"; "le" ] );
@@ -43,10 +33,7 @@ let cases =
     ({|\(|}, r {|\(|}, [ "("; ")"; "" ]);
     ("->", r "->", [ "->"; "-"; ">"; "" ]);
     ({|=|\+|->|\(|\)|}, operators, [ "="; "+"; "->"; "("; ")"; "" ]);
-    (* the same alternation with its parentheses left unescaped: they group,
-       so [(|)] is [(eps|eps)] — it matches nothing but the empty string *)
     ({|=|\+|->|(|)|}, r {|=|\+|->|(|)|}, [ "="; "+"; "->"; "("; ")"; "" ]);
-    (* the composed vocabulary: tokens separated by exactly one whitespace *)
     ( "<mlot>",
       mlot,
       [

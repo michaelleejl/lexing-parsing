@@ -2,10 +2,6 @@ open Printf
 module Dfa = Lexparse.Dfa.Make (Char)
 module Nfa = Dfa.Nfa
 
-(* The subset construction is supposed to preserve the language exactly, so
-   every case is checked against the NFA it was determinised from. Anything
-   that prints MISMATCH is a bug in [determinise]. *)
-
 let automata =
   [
     ("empty", Nfa.empty);
@@ -22,7 +18,6 @@ let automata =
         (Nfa.seq (Nfa.one_of [ 'a' ])
            (Nfa.kleene (Nfa.alt (Nfa.one_of [ 'b' ]) (Nfa.one_of [ 'c' ]))))
         (Nfa.one_of [ 'd' ]) );
-    (* nested kleene: the classic way to make a subset construction loop *)
     ("(a*)*", Nfa.kleene (Nfa.kleene (Nfa.one_of [ 'a' ])));
   ]
 
@@ -166,8 +161,6 @@ let%expect_test "determinise preserves the language" =
     (a*)*      "abbcd"  nfa=false dfa=false
     |}]
 
-(* [step]/[is_accepting] are what the lexers drive directly, rather than
-   [accept] *)
 let%expect_test "stepping an nfa by hand" =
   let nfa = Nfa.seq (Nfa.kleene (Nfa.one_of [ 'a' ])) (Nfa.one_of [ 'b' ]) in
   let states = ref (Nfa.initialise nfa) in

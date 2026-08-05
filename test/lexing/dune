@@ -1,8 +1,6 @@
 (library
- (name test_lexparse)
+ (name test_lexparse_lexing)
  (libraries lexparse)
  (inline_tests)
  (preprocess
   (pps ppx_expect)))
-
-(include_subdirs qualified)

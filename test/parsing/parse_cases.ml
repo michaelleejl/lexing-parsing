@@ -2,11 +2,6 @@ open Printf
 open Lexparse.Mlot
 open Token
 
-(* One corpus, run against every parser implementation. The six parsers are
-   built from two grammars by four different techniques, but they accept the
-   same language and build the same trees, so a disagreement between them is a
-   bug in one of them — and shows up here as a diff in a single expect block. *)
-
 let accepted =
   [
     ("x", [ IDENT "x" ]);
@@ -114,7 +109,6 @@ let rejected =
     ("let x 1 in x", [ LET; IDENT "x"; NUM 1; IN; IDENT "x" ]);
     ("let x = 1 x", [ LET; IDENT "x"; EQUALS; NUM 1; IDENT "x" ]);
     ("rec x = 1 in x", [ REC; IDENT "x"; EQUALS; NUM 1; IN; IDENT "x" ]);
-    (* [fun] and [let] are expressions, not operands *)
     ("1 + fun x -> x", [ NUM 1; PLUS; FUN; IDENT "x"; ARROW; IDENT "x" ]);
     ( "f let x = 1 in x",
       [ IDENT "f"; LET; IDENT "x"; EQUALS; NUM 1; IN; IDENT "x" ] );
@@ -122,10 +116,6 @@ let rejected =
 
 let cases = accepted @ rejected
 
-(* The parsers' [ParseFail] exceptions are not exported from their .mli files,
-   so a rejection is recognised by elimination: anything that is not one of the
-   runtime's own failures is the parser saying no. Crashes stay distinguishable
-   — a [Not_found] out of a table lookup is not a rejection. *)
 let describe = function
   | Not_found -> "<crash: Not_found>"
   | Match_failure _ -> "<crash: Match_failure>"

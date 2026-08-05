@@ -1,10 +1,6 @@
 open Printf
 open Lexparse.Mlot
 
-(* One corpus, run against both lexer implementations. As with the parsers,
-   the interpreted and the compiled lexer are supposed to agree token for
-   token, so a divergence lands as a diff in one expect block. *)
-
 let cases =
   [
     "";
@@ -29,24 +25,18 @@ let cases =
     "(1 + 2)";
     "1 + -2";
     "f (x)";
-    (* maximal munch: neither of these is a keyword followed by a suffix *)
     "letrec";
     "trueish";
     "inx";
-    (* no whitespace between adjacent tokens *)
     "fun->x";
     "1+2";
     "x=y";
-    (* outside the vocabulary *)
     "@";
     "x @ y";
     "_x";
     "1a";
   ]
 
-(* [LexFailure] is declared with a different arity by the two lexers, so it
-   cannot be named once for both; recognise a rejection by elimination and keep
-   genuine crashes distinguishable. *)
 let describe = function
   | Not_found -> "<crash: Not_found>"
   | Match_failure _ -> "<crash: Match_failure>"

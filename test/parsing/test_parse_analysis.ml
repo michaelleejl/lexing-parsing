@@ -3,9 +3,6 @@ open Lexparse
 open Lexparse.Mlot
 open Lexparse.Parsing.Analysis
 
-(* Prints the intermediate tables a predictive parser is built from, so that a
-   change to the analysis shows up as a diff rather than as a mystery parse
-   failure three modules downstream. *)
 module Report (Gram : Intfs.Grammar.S) = struct
   module A = GrammarAnalysis (Gram)
 
@@ -20,7 +17,6 @@ module Report (Gram : Intfs.Grammar.S) = struct
     | [] -> "eps"
     | rhs -> List.map sym rhs |> String.concat " "
 
-  (* the start symbol's rule lives outside [grammar] *)
   let productions =
     (Gram.start, [ Gram.start_production ])
     :: List.filter_map
@@ -43,7 +39,6 @@ module Report (Gram : Intfs.Grammar.S) = struct
       (fun n ts -> printf "follow(%-5s) = %s\n" (nt n) (tset ts))
       A.Follow.table
 
-  (* the guard both LL1 parsers compute for a single production *)
   let predict_set lhs (p : Gram.production) =
     let first = A.First.syms p.rhs |> A.unwrap in
     if A.Nullable.syms p.rhs then A.TSet.union first (A.Follow.nonterminal lhs)
@@ -59,8 +54,6 @@ module Report (Gram : Intfs.Grammar.S) = struct
           rhss)
       productions
 
-  (* a grammar is LL(1) exactly when the predict sets of the productions
-     sharing a left-hand side are pairwise disjoint *)
   let conflicts (lhs, rhss) =
     let rec pairwise = function
       | [] -> []
@@ -90,8 +83,6 @@ end
 
 module Factored = Report (Grammars.LeftFactored)
 module Unfactored = Report (Grammars.General)
-
-(* ---------- LeftFactored ---------- *)
 
 let%expect_test "left-factored: nullable" =
   Factored.nullable ();
@@ -159,8 +150,6 @@ let%expect_test "left-factored: is LL(1)" =
   Factored.ll1 ();
   [%expect {| LL(1): yes |}]
 
-(* ---------- General ---------- *)
-
 let%expect_test "general: nullable" =
   Unfactored.nullable ();
   [%expect {| nullable: T' F' G' |}]
@@ -220,8 +209,6 @@ let%expect_test "general: predict sets" =
     S     ::= LPAREN E RPAREN          { LPAREN }
     |}]
 
-(* the point of left-factoring: this grammar is not LL(1), and the two LET
-   productions are why *)
 let%expect_test "general: is LL(1)" =
   Unfactored.ll1 ();
   [%expect {|
@@ -229,15 +216,11 @@ let%expect_test "general: is LL(1)" =
       E conflicts on LET
     |}]
 
-(* ---------- the helpers the tables are assembled from ---------- *)
-
 module F = Grammars.LeftFactored
 
 let show_first = Factored.show_first
 let show_nullable = Factored.show_nullable
 
-(* first of the empty sequence is {eps}: without it a production with an empty
-   right-hand side never picks up its follow set *)
 let%expect_test "first of eps" =
   show_first [];
   [%expect {| eps |}]
