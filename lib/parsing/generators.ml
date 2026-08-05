@@ -80,8 +80,6 @@ module General (Gram : Grammar.S) = struct
     type t = Match of terminal | Predict of Reductions.id [@@deriving compare]
     type action = token -> ParseStack.t -> ParseStack.t
 
-    (* `syms` is the predicted production's rhs: the symbols the new frame
-       is still waiting on *)
     let prod_action syms reduce =
      fun _token ->
       fun s ->
