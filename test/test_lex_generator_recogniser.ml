@@ -1,37 +1,110 @@
 open Lexparse.Lexing.Generators.Recogniser
-open Lexparse.Regex
-open Printf
 
-let keywords = r "let|rec|in|fun|true|false"
-let operators = r {|=|\+|->|(|)|}
-let ident = r "[a-zA-Z][a-zA-Z0-9]*"
-let literal = r "-?[0-9]+"
-let whitespace = r {|\s|}
-let recognise_one = keywords >| operators >| ident >| literal
-
-let mlot_recogniser =
-  compile (epsilon >| recognise_one >& ~*(whitespace >& recognise_one))
-
-let%expect_test _ =
-  printf "%b" (recognise mlot_recogniser "fun");
-  [%expect {| true |}]
-
-let%expect_test _ =
-  printf "%b" (recognise mlot_recogniser "fun ->");
-  [%expect {| true |}]
-
-let%expect_test _ =
-  printf "%b" (recognise mlot_recogniser "x");
-  [%expect {| true |}]
-
-let%expect_test _ =
-  printf "%b" (recognise mlot_recogniser "-123");
-  [%expect {| true |}]
-
-let%expect_test _ =
-  printf "%b" (recognise mlot_recogniser "0123");
-  [%expect {| true |}]
-
-let%expect_test _ =
-  printf "%b" (recognise mlot_recogniser "fun->");
-  [%expect {| false |}]
+let%expect_test "corpus" =
+  Recognise_cases.run compile recognise;
+  [%expect
+    {|
+    a                          ""     false
+    a                          "a"    true
+    a                          "b"    false
+    a                          "aa"   false
+    ab                         "ab"   true
+    ab                         "a"    false
+    ab                         "b"    false
+    ab                         "abc"  false
+    a|b                        ""     false
+    a|b                        "a"    true
+    a|b                        "b"    true
+    a|b                        "c"    false
+    a|b                        "ab"   false
+    a*                         ""     true
+    a*                         "a"    true
+    a*                         "aaa"  true
+    a*                         "b"    false
+    a*                         "ab"   false
+    a+                         ""     false
+    a+                         "a"    true
+    a+                         "aaa"  true
+    a+                         "b"    false
+    a?                         ""     true
+    a?                         "a"    true
+    a?                         "aa"   false
+    (ab)*                      ""     true
+    (ab)*                      "ab"   true
+    (ab)*                      "abab" true
+    (ab)*                      "aba"  false
+    (ab)*                      "b"    false
+    (a|b)*c                    "c"    true
+    (a|b)*c                    "ac"   true
+    (a|b)*c                    "abbac" true
+    (a|b)*c                    "ab"   false
+    (a|b)*c                    ""     false
+    [a-c]                      "a"    true
+    [a-c]                      "b"    true
+    [a-c]                      "c"    true
+    [a-c]                      "d"    false
+    [a-c]                      ""     false
+    [a-c]*                     ""     true
+    [a-c]*                     "abc"  true
+    [a-c]*                     "cba"  true
+    [a-c]*                     "abd"  false
+    let|rec|in|fun|true|false  "let"  true
+    let|rec|in|fun|true|false  "rec"  true
+    let|rec|in|fun|true|false  "in"   true
+    let|rec|in|fun|true|false  "fun"  true
+    let|rec|in|fun|true|false  "true" true
+    let|rec|in|fun|true|false  "false" true
+    let|rec|in|fun|true|false  "letrec" false
+    let|rec|in|fun|true|false  "le"   false
+    [a-zA-Z][a-zA-Z0-9]*       "x"    true
+    [a-zA-Z][a-zA-Z0-9]*       "x1"   true
+    [a-zA-Z][a-zA-Z0-9]*       "X9y"  true
+    [a-zA-Z][a-zA-Z0-9]*       ""     false
+    [a-zA-Z][a-zA-Z0-9]*       "1x"   false
+    [a-zA-Z][a-zA-Z0-9]*       "x_"   false
+    -?[0-9]+                   "0"    true
+    -?[0-9]+                   "42"   true
+    -?[0-9]+                   "-42"  true
+    -?[0-9]+                   ""     false
+    -?[0-9]+                   "-"    false
+    -?[0-9]+                   "--1"  false
+    -?[0-9]+                   "4a"   false
+    \s                         " "    true
+    \s                         "\t"   true
+    \s                         "\n"   true
+    \s                         ""     false
+    \s                         "a"    false
+    \s                         "  "   false
+    \+                         "+"    true
+    \+                         ""     false
+    \+                         "++"   false
+    \(                         "("    true
+    \(                         ")"    false
+    \(                         ""     false
+    ->                         "->"   true
+    ->                         "-"    false
+    ->                         ">"    false
+    ->                         ""     false
+    =|\+|->|\(|\)              "="    true
+    =|\+|->|\(|\)              "+"    true
+    =|\+|->|\(|\)              "->"   true
+    =|\+|->|\(|\)              "("    true
+    =|\+|->|\(|\)              ")"    true
+    =|\+|->|\(|\)              ""     false
+    =|\+|->|(|)                "="    true
+    =|\+|->|(|)                "+"    true
+    =|\+|->|(|)                "->"   true
+    =|\+|->|(|)                "("    false
+    =|\+|->|(|)                ")"    false
+    =|\+|->|(|)                ""     true
+    <mlot>                     ""     true
+    <mlot>                     "fun"  true
+    <mlot>                     "x"    true
+    <mlot>                     "-123" true
+    <mlot>                     "0123" true
+    <mlot>                     "fun ->" true
+    <mlot>                     "fun->" false
+    <mlot>                     "let x = 1 in x" true
+    <mlot>                     "x  y" false
+    <mlot>                     "@"    false
+    |}]
