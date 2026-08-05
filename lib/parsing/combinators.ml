@@ -34,6 +34,9 @@ module General (Gram : Grammar.S) = struct
         | Consumption { lhs; action } -> Right (lhs, action))
       Gram.grammar
 
+  let production_rules =
+    (Gram.start, [ Gram.start_production ]) :: production_rules
+
   let (nonterminals, productions) : nonterminal list * production list list =
     List.split production_rules
 
@@ -140,6 +143,9 @@ module LL1 (Gram : Grammar.S) = struct
         | Production { lhs; rhss } -> Left (lhs, rhss)
         | Consumption { lhs; action } -> Right (lhs, action))
       Gram.grammar
+
+  let production_rules =
+    (Gram.start, [ Gram.start_production ]) :: production_rules
 
   let (nonterminals, productions) : nonterminal list * production list list =
     List.split production_rules

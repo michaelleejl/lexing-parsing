@@ -254,17 +254,16 @@ module General = struct
 
   (* ---------- start ------------*)
   (* Start ::= E EOF *)
-  let prod_start_e =
+  let start = Nonterminal.Start
+
+  let start_production =
     {
       rhs = [ N E; T EOF ];
       action = [%act function [ Expr e; _ ] -> mk_one e];
     }
 
-  let prod_start = Production { lhs = Start; rhss = [ prod_start_e ] }
-
   let grammar : rule list =
     [
-      prod_start;
       prod_e;
       prod_t;
       prod_t';
@@ -288,8 +287,6 @@ module General = struct
       cons_rec;
       cons_eof;
     ]
-
-  let start = Nonterminal.Start
 end
 
 module LeftFactored = struct
@@ -480,17 +477,16 @@ module LeftFactored = struct
 
   (* ---------- start ------------*)
   (* Start ::= E EOF *)
-  let prod_start_e =
+  let start = Nonterminal.Start
+
+  let start_production =
     {
       rhs = [ N E; T EOF ];
       action = [%act function [ Expr e; _ ] -> mk_one e];
     }
 
-  let prod_start = Production { lhs = Start; rhss = [ prod_start_e ] }
-
   let grammar : rule list =
     [
-      prod_start;
       prod_e;
       prod_e';
       prod_t;
@@ -515,6 +511,4 @@ module LeftFactored = struct
       cons_rec;
       cons_eof;
     ]
-
-  let start = Nonterminal.Start
 end

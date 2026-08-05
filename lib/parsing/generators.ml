@@ -82,12 +82,10 @@ module General (Gram : Grammar.S) = struct
 
     let prod_action syms reduce =
      fun _ s ->
-       let f = ParseStack.create_frame syms reduce in
-       ParseStack.push s f
+      let f = ParseStack.create_frame syms reduce in
+      ParseStack.push s f
 
-    let cons_action shift =
-     fun token s -> ParseStack.fill s (shift token)
-
+    let cons_action shift = fun token s -> ParseStack.fill s (shift token)
     let tag_to_action_tbl : (t, action) Hashtbl.t = Hashtbl.create 32
 
     let register_cons terminal shift =
@@ -207,14 +205,14 @@ module General (Gram : Grammar.S) = struct
     let transitions =
       TransitionSet.fold
         (fun (input, output) transitions ->
-           let existing =
-             match TaggedPda.Transition.find_opt input transitions with
-             | Some outputs -> outputs
-             | None -> TaggedPda.TransitionOutputSet.empty
-           in
-           TaggedPda.Transition.add input
-             (TaggedPda.TransitionOutputSet.add output existing)
-             transitions)
+          let existing =
+            match TaggedPda.Transition.find_opt input transitions with
+            | Some outputs -> outputs
+            | None -> TaggedPda.TransitionOutputSet.empty
+          in
+          TaggedPda.Transition.add input
+            (TaggedPda.TransitionOutputSet.add output existing)
+            transitions)
         ts TaggedPda.Transition.empty
     in
     TaggedPda.
@@ -225,7 +223,10 @@ module General (Gram : Grammar.S) = struct
         next = (fun _ -> transitions);
       }
 
-  let parser = compile Gram.grammar
+  let start_rule =
+    Production { lhs = Gram.start; rhss = [ Gram.start_production ] }
+
+  let parser = compile (start_rule :: Gram.grammar)
 
   let parse tokens =
     let initial_hypothesis =

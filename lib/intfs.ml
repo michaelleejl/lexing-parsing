@@ -78,7 +78,8 @@ module Grammar = struct
       | Production of { lhs : nonterminal; rhss : production list }
       | Consumption of { lhs : terminal; action : shift }
 
-    val grammar : rule list
     val start : nonterminal
+    val start_production : production
+    val grammar : rule list
   end
 end
