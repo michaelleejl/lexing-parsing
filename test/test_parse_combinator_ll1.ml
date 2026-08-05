@@ -1,6 +1,6 @@
 open Printf
 open Lexparse.Mlot
-open Lexparse.Parsing.Combinators.LL1(Grammars.LeftFactored)
+open Lexparse.Parsing.Combinators.LL1 (Grammars.LeftFactored)
 
 let print_ast x = Ast.to_str x |> printf "%s"
 
