@@ -1,6 +1,6 @@
 open Regex
 
-module RegexToNfa (N : Nfa.S with type input = char) = struct
+module RegexToNfa (N : Automata.Nfa.S with type input = char) = struct
   let rec compile r =
     match r with
     | Empty -> N.empty
@@ -12,7 +12,7 @@ module RegexToNfa (N : Nfa.S with type input = char) = struct
 end
 
 module Recogniser = struct
-  module Dfa = Dfa.Make (Char)
+  module Dfa = Automata.Dfa.Make (Char)
   open Dfa
 
   type r = Regex.t
@@ -49,7 +49,7 @@ struct
     let tag_to_action t cs = (Hashtbl.find tags_to_actions t) cs
   end
 
-  module TaggedDfa = Tdfa.Make (Char) (LexTag)
+  module TaggedDfa = Automata.Tdfa.Make (Char) (LexTag)
   module TaggedNfa = TaggedDfa.TaggedNfa
   module Nfa = TaggedNfa.Nfa
 

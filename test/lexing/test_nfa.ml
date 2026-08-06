@@ -1,5 +1,5 @@
-open Lexparse.Nfa
-module Nfa = Lexparse.Nfa.Make (Char)
+open Lexparse.Automata.Nfa
+module Nfa = Lexparse.Automata.Nfa.Make (Char)
 open Nfa
 open Printf
 

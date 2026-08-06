@@ -104,7 +104,7 @@ module General (Gram : Grammar.S) = struct
     let tag_to_action = Hashtbl.find tag_to_action_tbl
   end
 
-  module TaggedPda = Tpda.Make (Terminal) (Gram) (ParseTag)
+  module TaggedPda = Automata.Tpda.Make (Terminal) (Gram) (ParseTag)
 
   module ParseHypothesis = struct
     type t = TaggedPda.config * ParseStack.t [@@deriving compare]

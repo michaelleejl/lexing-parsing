@@ -1,5 +1,5 @@
 open Printf
-module Dfa = Lexparse.Dfa.Make (Char)
+module Dfa = Lexparse.Automata.Dfa.Make (Char)
 module Nfa = Dfa.Nfa
 
 let automata =

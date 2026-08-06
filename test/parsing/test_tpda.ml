@@ -23,7 +23,7 @@ module Tag = struct
     | BToCa -> "B->a"
 end
 
-module P = Lexparse.Tpda.Make (Char) (Sym) (Tag)
+module P = Lexparse.Automata.Tpda.Make (Char) (Sym) (Tag)
 
 let transitions rules =
   List.fold_left
