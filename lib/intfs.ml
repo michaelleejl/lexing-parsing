@@ -35,13 +35,6 @@ module StackSyms = struct
   end
 end
 
-module Actions = struct
-  module type S = sig
-    type t
-
-    val compare : t -> t -> int
-  end
-end
 
 module Grammar = struct
   module type S = sig
