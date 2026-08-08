@@ -18,4 +18,4 @@ module type S = sig
 
 end
 
-module Make (Action : ACTION) () : S with type action = Action.t
+module Make (Action : ACTION) : S with type action = Action.t

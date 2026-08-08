@@ -13,7 +13,7 @@ module type S = sig
   val get : Tag.t -> table -> action
 end
 
-module Make (Action : ACTION) () = struct
+module Make (Action : ACTION) = struct
   module Tag = struct
     type t = ..
 
