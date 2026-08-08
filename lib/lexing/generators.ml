@@ -52,9 +52,9 @@ struct
   open TaggedDfa
   module RegexCompiler = RegexToNfa (TaggedNfa.Nfa)
 
-  let compile matcher action registry =
-    let tag, registry = ActionRegistry.register action registry in
-    (TaggedNfa.lift (RegexCompiler.compile matcher) tag, registry)
+  let compile matcher action =
+    let tag = ActionRegistry.register action in
+    TaggedNfa.lift (RegexCompiler.compile matcher) tag
 
   let ( >>| ) = TaggedNfa.alt
   let determinise = determinise
@@ -67,16 +67,15 @@ struct
     last_accepting : (int * state) option;
   }
 
-  let rec lex_step machine registry
-      { state; rest; tokens; buffer; last_accepting } =
+  let rec lex_step machine { state; rest; tokens; buffer; last_accepting } =
     if is_rejecting machine state then
-      rollback machine registry state rest tokens buffer last_accepting
+      rollback machine state rest tokens buffer last_accepting
     else
       match rest with
       | [] ->
           if is_accepting machine state then
-            advance machine registry tokens rest buffer 0 state
-          else rollback machine registry state rest tokens buffer last_accepting
+            advance machine tokens rest buffer 0 state
+          else rollback machine state rest tokens buffer last_accepting
       | c :: rest ->
           let next_state = step machine state c in
           let new_accepting =
@@ -94,19 +93,19 @@ struct
             state = next_state;
           }
 
-  and rollback machine registry state rest tokens buffer last_accepting =
+  and rollback machine state rest tokens buffer last_accepting =
     match last_accepting with
     | None -> raise (LexFailure "no last accepting state")
-    | Some (k, qs) -> advance machine registry tokens rest buffer k qs
+    | Some (k, qs) -> advance machine tokens rest buffer k qs
 
-  and advance machine registry tokens rest buffer k qs =
+  and advance machine tokens rest buffer k qs =
     let tag = emit_tag machine qs in
     match tag with
     | None -> raise (LexFailure "tag is empty")
     | Some tag -> (
         let chars = List.drop k buffer in
         let buffer = List.take k buffer in
-        let action = ActionRegistry.get tag registry (List.rev chars) in
+        let action = ActionRegistry.get tag (List.rev chars) in
         let last_accepting = None in
         let state = initialise machine in
         let rest = List.rev buffer @ rest in
@@ -116,20 +115,15 @@ struct
         | Some t ->
             { rest; tokens = t :: tokens; buffer; last_accepting; state })
 
-  let rec lex_run machine registry state =
+  let rec lex_run machine state =
     match (state.rest, state.buffer) with
     | [], [] -> List.rev state.tokens
-    | _, _ -> lex_run machine registry (lex_step machine registry state)
+    | _, _ -> lex_run machine (lex_step machine state)
 
-  let registry, ls =
-    List.fold_left_map
-      (fun registry (r, a) ->
-        let n, registry = compile r a registry in
-        (registry, n))
-      ActionRegistry.empty Vocab.vocabulary
+  let ls = List.map (fun (r, a) -> compile r a) Vocab.vocabulary
 
-  let empty_lexer, registry =
-    compile Regex.empty (fun _ -> raise (LexFailure "empty lexer")) registry
+  let empty_lexer =
+    compile Regex.empty (fun _ -> raise (LexFailure "empty lexer"))
 
   let lexer = List.fold_right ( >>| ) ls empty_lexer |> determinise
 
@@ -144,5 +138,5 @@ struct
         last_accepting = None;
       }
     in
-    lex_run lexer registry initial_state
+    lex_run lexer initial_state
 end
