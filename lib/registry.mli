@@ -8,13 +8,10 @@ module type S = sig
   module Tag : Tags.S
   
   type action
-  type table
 
-  val empty : table
+  val register : action -> Tag.t
 
-  val register : action -> table -> Tag.t * table
-
-  val get : Tag.t -> table -> action
+  val get : Tag.t -> action
 
 end
 

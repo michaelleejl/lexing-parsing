@@ -6,11 +6,9 @@ module type S = sig
   module Tag : Intfs.Tags.S
 
   type action
-  type table
 
-  val empty : table
-  val register : action -> table -> Tag.t * table
-  val get : Tag.t -> table -> action
+  val register : action -> Tag.t 
+  val get : Tag.t -> action 
 end
 
 module Make (Action : ACTION) = struct
@@ -20,18 +18,17 @@ module Make (Action : ACTION) = struct
     let compare = compare
   end
 
-  module TagMap = Map.Make (Tag)
-
+  type tag = Tag.t 
   type action = Action.t
-  type table = action TagMap.t
 
-  let empty = TagMap.empty
+  let table: (tag, action) Hashtbl.t = Hashtbl.create 128
 
-  let register act tbl =
+  let register act =
     let module M = struct
       type Tag.t += T
     end in
-    (M.T, TagMap.add M.T act tbl)
+    Hashtbl.add table M.T act ;
+    M.T
 
-  let get tag tbl = TagMap.find tag tbl
+  let get tag = Hashtbl.find table tag
 end
