@@ -1,4 +1,3 @@
-open Intfs
 
 module General : sig
   type token = Mlot.Token.t

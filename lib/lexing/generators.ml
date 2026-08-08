@@ -24,12 +24,12 @@ module Recogniser = struct
   let recognise dfa s = Base.String.to_list s |> Dfa.accept dfa
 end
 
-open Intfs
+open Lang
 
 module Lexer
-    (Vocab : Vocabulary.S with type input = char and type spec = C.t rgx) =
+    (Vocabulary : VOCABULARY with type input = char and type spec = C.t rgx) =
 struct
-  type token = Vocab.token
+  type token = Vocabulary.token
   type action = char list -> token option
 
   module ActionRegistry =
@@ -120,7 +120,7 @@ struct
     | [], [] -> List.rev state.tokens
     | _, _ -> lex_run machine (lex_step machine state)
 
-  let ls = List.map (fun (r, a) -> compile r a) Vocab.vocabulary
+  let ls = List.map (fun (r, a) -> compile r a) Vocabulary.rules
 
   let empty_lexer =
     compile Regex.empty (fun _ -> raise (LexFailure "empty lexer"))

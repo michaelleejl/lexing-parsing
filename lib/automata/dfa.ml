@@ -1,4 +1,4 @@
-open Intfs
+open Params
 
 module type S = sig
   type input
@@ -26,7 +26,7 @@ module type S = sig
   val accept : t -> input list -> bool
 end
 
-module Make (Input : Inputs.S) = struct
+module Make (Input : INPUT) = struct
   type input = Input.t
 
   module Nfa = Nfa.Make (Input)

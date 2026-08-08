@@ -1,4 +1,4 @@
-open Intfs
+open Lang
 open Regex
 
 module Recogniser : sig
@@ -10,8 +10,8 @@ module Recogniser : sig
 end
 
 module Lexer
-    (Vocab : Vocabulary.S with type input = char and type spec = C.t rgx) : sig
-  type token = Vocab.token
+    (Vocabulary : VOCABULARY with type input = char and type spec = C.t rgx) : sig
+  type token = Vocabulary.token
 
   exception LexFailure of string
 

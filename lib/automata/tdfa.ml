@@ -1,4 +1,4 @@
-open Intfs
+open Params
 
 module type S = sig
   type tag
@@ -34,7 +34,7 @@ module type S = sig
   val emit_tag : t -> state -> tag option
 end
 
-module Make (Input : Inputs.S) (Tag : Tags.S) = struct
+module Make (Input : INPUT) (Tag : TAG) = struct
   type input = Input.t
   type tag = Tag.t
 

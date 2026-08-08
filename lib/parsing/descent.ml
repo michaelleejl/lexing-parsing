@@ -1,4 +1,3 @@
-open Intfs
 open Mlot.Token
 open Mlot.Ast
 

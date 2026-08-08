@@ -1,7 +1,7 @@
-open Intfs
+open Params
 open Ppx_compare_lib.Builtin
 
-module Make (Input : Inputs.S) (StackSym : StackSyms.S) (Tag : Tags.S) = struct
+module Make (Input : INPUT) (StackSym : STACK_SYM) (Tag : TAG) = struct
   type input = Input.t
   type stack_sym = StackSym.t
   type tag = Tag.t

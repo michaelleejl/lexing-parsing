@@ -1,5 +1,7 @@
-open Intfs
+open Lang
 open Regex
+
+type 'a outcome = Success of 'a | Failure
 
 module Recogniser = struct
   type r = Regex.t
@@ -38,9 +40,9 @@ module Recogniser = struct
 end
 
 module Lexer
-    (Vocab : Vocabulary.S with type input = char and type spec = C.t rgx) =
+    (Vocabulary : VOCABULARY with type input = char and type spec = C.t rgx) =
 struct
-  type token = Vocab.token
+  type token = Vocabulary.token
   type action = char list -> token option
   type r = Regex.t
   type matcher_state = { matched : char list; rest : char list }
@@ -126,7 +128,7 @@ struct
     | { lexed; rest = [] } -> List.rev lexed
     | { lexed; rest } as state -> lex_run l (lex_step l state)
 
-  let ls = List.map (fun (r, a) -> interpret r a) Vocab.vocabulary
+  let ls = List.map (fun (r, a) -> interpret r a) Vocabulary.rules
   let empty_lexer = interpret Regex.empty (fun _ -> raise LexFailure)
   let lexer = List.fold_right ( >>| ) ls empty_lexer
 

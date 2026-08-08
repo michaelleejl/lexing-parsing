@@ -1,18 +1,18 @@
-open Intfs
+open Lang
 open Ppx_compare_lib.Builtin
 
 exception ParseFail of string
 
-module General (Gram : Grammar.S) = struct
-  open Gram
+module General (Grammar : GRAMMAR) = struct
+  open Grammar
 
-  type token = Gram.token
-  type ast = Gram.ast
+  type token = Grammar.token
+  type ast = Grammar.ast
 
   module ReductionRegistry =
     Registry.Make
       (struct
-        type t = Gram.reduce
+        type t = Grammar.reduce
       end)
 
   module ParseStack = struct
@@ -80,7 +80,7 @@ module General (Gram : Grammar.S) = struct
     let rtag = ReductionRegistry.register reduce in
     ActionRegistry.register (prod_action syms rtag)
 
-  module TaggedPda = Automata.Tpda.Make (Terminal) (Gram) (ActionRegistry.Tag)
+  module TaggedPda = Automata.Tpda.Make (Terminal) (Grammar) (ActionRegistry.Tag)
 
   module ParseHypothesis = struct
     type t = TaggedPda.config * ParseStack.t [@@deriving compare]
@@ -106,7 +106,7 @@ module General (Gram : Grammar.S) = struct
     let traces =
       TaggedPda.consume machine
         (TaggedPda.TraceSet.singleton (config, []))
-        (Gram.token_to_terminal token)
+        (Grammar.token_to_terminal token)
     in
     TaggedPda.TraceSet.fold
       (collect_traces token stack)
@@ -137,13 +137,13 @@ module General (Gram : Grammar.S) = struct
         in
         match ParseHypotheses.to_list accepting with
         | [] -> raise (ParseFail "no parse found")
-        | [ (_, s) ] -> Gram.unwrap (ParseStack.unwrap s)
+        | [ (_, s) ] -> Grammar.unwrap (ParseStack.unwrap s)
         | _ -> raise (ParseFail "ambiguous parse"))
 
   module Transition = struct
     type t =
-      (terminal option * Gram.t)
-      * (TaggedPda.state * Gram.t list * ActionRegistry.Tag.t)
+      (terminal option * Grammar.t)
+      * (TaggedPda.state * Grammar.t list * ActionRegistry.Tag.t)
     [@@deriving compare]
   end
 
@@ -196,14 +196,14 @@ module General (Gram : Grammar.S) = struct
       {
         states = TaggedPda.State.singleton state;
         initial_state = state;
-        initial_stack_sym = N Gram.start;
+        initial_stack_sym = N Grammar.start;
         next = (fun _ -> transitions);
       }
 
   let start_rule =
-    Production { lhs = Gram.start; rhss = [ Gram.start_production ] }
+    Production { lhs = Grammar.start; rhss = [ Grammar.start_production ] }
 
-  let parser = compile (start_rule :: Gram.grammar)
+  let parser = compile (start_rule :: Grammar.rules)
 
   let parse tokens =
     let initial_hypothesis =
@@ -216,23 +216,23 @@ module General (Gram : Grammar.S) = struct
     in
     let initial_state =
       {
-        tokens = tokens @ [ Gram.eof ];
+        tokens = tokens @ [ Grammar.eof ];
         hypotheses = ParseHypotheses.singleton initial_hypothesis;
       }
     in
     parse_run parser initial_state
 end
 
-module LL1 (Gram : Grammar.S) = struct
-  open Gram
+module LL1 (Grammar : GRAMMAR) = struct
+  open Grammar
 
-  type token = Gram.token
-  type ast = Gram.ast
+  type token = Grammar.token
+  type ast = Grammar.ast
 
   module ReductionRegistry =
     Registry.Make
       (struct
-        type t = Gram.reduce
+        type t = Grammar.reduce
       end)
 
   module ParseStack = struct
@@ -308,7 +308,7 @@ module LL1 (Gram : Grammar.S) = struct
     ActionRegistry.register (prod_action syms tag)
 
   module ParseTable = struct
-    type key = Gram.t * Terminal.t
+    type key = Grammar.t * Terminal.t
     type value = ActionRegistry.Tag.t
     type t = (key, value) Hashtbl.t
 
@@ -329,7 +329,7 @@ module LL1 (Gram : Grammar.S) = struct
   end
 
   open Analysis
-  open GrammarAnalysis (Gram)
+  open GrammarAnalysis (Grammar)
 
   type parsing_state = { tokens : token list; stack : ParseStack.t }
 
@@ -343,7 +343,7 @@ module LL1 (Gram : Grammar.S) = struct
     | tok :: toks -> (
         match ParseStack.peek stack with
         | T term ->
-            let term' = Gram.token_to_terminal tok in
+            let term' = Grammar.token_to_terminal tok in
             if term = term' then
               {
                 tokens = toks;
@@ -351,7 +351,7 @@ module LL1 (Gram : Grammar.S) = struct
               }
             else raise (ParseFail "parse fail")
         | N nonterm ->
-            let term = Gram.token_to_terminal tok in
+            let term = Grammar.token_to_terminal tok in
             {
               tokens;
               stack =
@@ -361,7 +361,7 @@ module LL1 (Gram : Grammar.S) = struct
   let rec parse_run ({ tokens; stack } as state) =
     match tokens with
     | _ :: _ -> parse_run (parse_step state)
-    | [] -> Gram.unwrap (ParseStack.unwrap stack)
+    | [] -> Grammar.unwrap (ParseStack.unwrap stack)
 
   let compile grammar =
     let consumption_rules, production_rules =
@@ -372,7 +372,7 @@ module LL1 (Gram : Grammar.S) = struct
         grammar
     in
     let start_tag =
-      let { action; _ } = Gram.start_production in
+      let { action; _ } = Grammar.start_production in
       ReductionRegistry.register action
     in
     List.iter
@@ -393,10 +393,10 @@ module LL1 (Gram : Grammar.S) = struct
       production_rules;
     start_tag
 
-  let start_tag = compile Gram.grammar
+  let start_tag = compile Grammar.rules
 
   let parse tokens =
-    let { rhs } = Gram.start_production in
+    let { rhs } = Grammar.start_production in
     let frame = ParseStack.create_frame rhs start_tag in
-    parse_run { tokens = tokens @ [ Gram.eof ]; stack = [ frame ] }
+    parse_run { tokens = tokens @ [ Grammar.eof ]; stack = [ frame ] }
 end

@@ -1,4 +1,4 @@
-open Intfs
+open Params
 
 module type S = sig
   type state = int
@@ -34,4 +34,4 @@ module type S = sig
   val step : t -> state_set -> input -> state_set
 end
 
-module Make (Input : Inputs.S) : S with type input = Input.t
+module Make (Input : INPUT) : S with type input = Input.t

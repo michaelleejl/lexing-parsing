@@ -1,12 +1,12 @@
-open Intfs
+open Lang
 
 exception ParseFail of string
 
-module General (Gram : Grammar.S) = struct
-  open Gram
+module General (Grammar : GRAMMAR) = struct
+  open Grammar
 
-  type token = Gram.token
-  type ast = Gram.ast
+  type token = Grammar.token
+  type ast = Grammar.ast
 
   let alt p1 p2 toks = try p1 toks with ParseFail _ -> p2 toks
 
@@ -24,18 +24,18 @@ module General (Gram : Grammar.S) = struct
   let fix_poly fs =
     fix (fun self fs -> List.map (fun f x -> f (self fs) x) fs) fs
 
-  module TerminalMap = Map.Make (Gram.Terminal)
-  module NonterminalMap = Map.Make (Gram.Nonterminal)
+  module TerminalMap = Map.Make (Grammar.Terminal)
+  module NonterminalMap = Map.Make (Grammar.Nonterminal)
 
   let production_rules, consumption_rules =
     List.partition_map
       (function
         | Production { lhs; rhss } -> Left (lhs, rhss)
         | Consumption { lhs; action } -> Right (lhs, action))
-      Gram.grammar
+      Grammar.rules
 
   let production_rules =
-    (Gram.start, [ Gram.start_production ]) :: production_rules
+    (Grammar.start, [ Grammar.start_production ]) :: production_rules
 
   let (nonterminals, productions) : nonterminal list * production list list =
     List.split production_rules
@@ -58,7 +58,7 @@ module General (Gram : Grammar.S) = struct
     try
       match toks with
       | tok :: toks' ->
-          let t' = Gram.token_to_terminal tok in
+          let t' = Grammar.token_to_terminal tok in
           if t = t' then (action tok, toks')
           else raise (ParseFail "terminal mismatch")
       | [] -> raise (ParseFail "expected a terminal")
@@ -87,22 +87,22 @@ module General (Gram : Grammar.S) = struct
 
   let parsers = List.map productions_to_parsers productions
   let parser = fix_poly parsers
-  let start = List.nth parser (NonterminalMap.find Gram.start nonterminal_map)
+  let start = List.nth parser (NonterminalMap.find Grammar.start nonterminal_map)
 
   let parse ts =
-    match start (ts @ [ Gram.eof ]) with
+    match start (ts @ [ Grammar.eof ]) with
     | e, [] -> unwrap e
     | _ -> raise (ParseFail "fail")
 end
 
-module LL1 (Gram : Grammar.S) = struct
-  open Gram
+module LL1 (Grammar : GRAMMAR) = struct
+  open Grammar
   open Analysis
 
-  type token = Gram.token
-  type ast = Gram.ast
+  type token = Grammar.token
+  type ast = Grammar.ast
 
-  open GrammarAnalysis (Gram)
+  open GrammarAnalysis (Grammar)
 
   type parser = token list -> data * token list
   type predictive_parser = { guard : TSet.t; parser : parser }
@@ -111,7 +111,7 @@ module LL1 (Gram : Grammar.S) = struct
     if TSet.disjoint g1 g2 then
       let parser = function
         | tok :: _ as toks ->
-            let term = Gram.token_to_terminal tok in
+            let term = Grammar.token_to_terminal tok in
             if TSet.mem term g1 then p1 toks
             else if TSet.mem term g2 then p2 toks
             else raise (ParseFail "unexpected token")
@@ -134,18 +134,18 @@ module LL1 (Gram : Grammar.S) = struct
   let fix_poly fs =
     fix (fun self fs -> List.map (fun f x -> f (self fs) x) fs) fs
 
-  module TerminalMap = Map.Make (Gram.Terminal)
-  module NonterminalMap = Map.Make (Gram.Nonterminal)
+  module TerminalMap = Map.Make (Grammar.Terminal)
+  module NonterminalMap = Map.Make (Grammar.Nonterminal)
 
   let production_rules, consumption_rules =
     List.partition_map
       (function
         | Production { lhs; rhss } -> Left (lhs, rhss)
         | Consumption { lhs; action } -> Right (lhs, action))
-      Gram.grammar
+      Grammar.rules
 
   let production_rules =
-    (Gram.start, [ Gram.start_production ]) :: production_rules
+    (Grammar.start, [ Grammar.start_production ]) :: production_rules
 
   let (nonterminals, productions) : nonterminal list * production list list =
     List.split production_rules
@@ -168,7 +168,7 @@ module LL1 (Gram : Grammar.S) = struct
     try
       match toks with
       | tok :: toks' ->
-          let t' = Gram.token_to_terminal tok in
+          let t' = Grammar.token_to_terminal tok in
           if t = t' then (action tok, toks')
           else raise (ParseFail "terminal mismatch")
       | [] -> raise (ParseFail "expected a terminal")
@@ -208,10 +208,10 @@ module LL1 (Gram : Grammar.S) = struct
 
   let parsers = List.map productions_to_parsers production_rules
   let parser = fix_poly parsers
-  let start = List.nth parser (NonterminalMap.find Gram.start nonterminal_map)
+  let start = List.nth parser (NonterminalMap.find Grammar.start nonterminal_map)
 
   let parse ts =
-    match start (ts @ [ Gram.eof ]) with
-    | e, [] -> Gram.unwrap e
+    match start (ts @ [ Grammar.eof ]) with
+    | e, [] -> Grammar.unwrap e
     | _ -> raise (ParseFail "fail")
 end

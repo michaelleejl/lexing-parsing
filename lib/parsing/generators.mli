@@ -1,15 +1,15 @@
-open Intfs
+open Lang
 
-module General (Gram : Grammar.S) : sig
-  type token = Gram.token
-  type ast = Gram.ast
+module General (Grammar : GRAMMAR) : sig
+  type token = Grammar.token
+  type ast = Grammar.ast
 
   val parse : token list -> ast
 end
 
-module LL1 (Gram : Grammar.S) : sig
-  type token = Gram.token
-  type ast = Gram.ast
+module LL1 (Grammar : GRAMMAR) : sig
+  type token = Grammar.token
+  type ast = Grammar.ast
 
   val parse : token list -> ast
 end

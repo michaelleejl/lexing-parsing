@@ -1,14 +1,14 @@
-open Intfs
+open Lang
 open Ppx_compare_lib.Builtin
 
-module GrammarAnalysis (Gram : Grammar.S) = struct
-  open Gram
-  module TSet = Set.Make (Gram.Terminal)
-  module NTMap = Map.Make (Gram.Nonterminal)
-  module NTSet = Set.Make (Gram.Nonterminal)
+module GrammarAnalysis (Grammar : GRAMMAR) = struct
+  open Grammar
+  module TSet = Set.Make (Grammar.Terminal)
+  module NTMap = Map.Make (Grammar.Nonterminal)
+  module NTSet = Set.Make (Grammar.Nonterminal)
 
   module TE = struct
-    type t = Term of Gram.terminal | Eps [@@deriving compare]
+    type t = Term of Grammar.terminal | Eps [@@deriving compare]
   end
 
   open TE
@@ -30,10 +30,10 @@ module GrammarAnalysis (Gram : Grammar.S) = struct
       (function
         | Production { lhs; rhss } -> Left (lhs, rhss)
         | Consumption { lhs; action } -> Right (lhs, action))
-      Gram.grammar
+      Grammar.rules
 
   let production_rules =
-    (Gram.start, [ Gram.start_production ]) :: production_rules
+    (Grammar.start, [ Grammar.start_production ]) :: production_rules
 
   let (nonterminals, productions) : nonterminal list * production list list =
     List.split production_rules

@@ -1,11 +1,9 @@
-open Intfs
-
 module type ACTION = sig
   type t
 end
 
 module type S = sig
-  module Tag : Tags.S
+  module Tag : Automata.Params.TAG
   
   type action
 

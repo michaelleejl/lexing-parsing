@@ -6,7 +6,7 @@ type token = Token.t
 type spec = Regex.t
 type action = input list -> token option
 
-let vocabulary =
+let rules =
   [
     (r "let", fun _ -> Some LET);
     (r "rec", fun _ -> Some REC);

@@ -3,7 +3,7 @@ module type ACTION = sig
 end
 
 module type S = sig
-  module Tag : Intfs.Tags.S
+  module Tag : Automata.Params.TAG
 
   type action
 

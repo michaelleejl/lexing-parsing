@@ -262,7 +262,7 @@ module General = struct
       action = [%act function [ Expr e; _ ] -> mk_one e];
     }
 
-  let grammar : rule list =
+  let rules : rule list =
     [
       prod_e;
       prod_t;
@@ -485,7 +485,7 @@ module LeftFactored = struct
       action = [%act function [ Expr e; _ ] -> mk_one e];
     }
 
-  let grammar : rule list =
+  let rules : rule list =
     [
       prod_e;
       prod_e';
