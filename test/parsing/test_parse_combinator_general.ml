@@ -1,5 +1,5 @@
 open Lexparse.Mlot
-open Lexparse.Parsing.Combinators
+open Lexparse.Parsing.Topdown.Combinators
 open Token
 open General (Grammars.General)
 
