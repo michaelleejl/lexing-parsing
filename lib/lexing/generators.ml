@@ -35,7 +35,7 @@ struct
   module ActionRegistry =
     Registry.Make
       (struct
-        type t = action
+        type nonrec action = action
       end)
 
   module TaggedDfa = Automata.Tdfa.Make (Char) (ActionRegistry.Tag)

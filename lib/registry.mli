@@ -1,5 +1,5 @@
 module type ACTION = sig
-  type t
+  type action
 end
 
 module type S = sig
@@ -13,4 +13,4 @@ module type S = sig
 
 end
 
-module Make (Action : ACTION) : S with type action = Action.t
+module Make (Action : ACTION) : S with type action = Action.action

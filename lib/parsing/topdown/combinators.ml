@@ -27,18 +27,9 @@ module General (Grammar : GRAMMAR) = struct
   module TerminalMap = Map.Make (Grammar.Terminal)
   module NonterminalMap = Map.Make (Grammar.Nonterminal)
 
-  let production_rules, consumption_rules =
-    List.partition_map
-      (function
-        | Production { lhs; rhss } -> Left (lhs, rhss)
-        | Consumption { lhs; action } -> Right (lhs, action))
-      Grammar.rules
+  module ProductionRules = GroupedProductions (Grammar)
 
-  let production_rules =
-    (Grammar.start, [ Grammar.start_production ]) :: production_rules
-
-  let (nonterminals, productions) : nonterminal list * production list list =
-    List.split production_rules
+  open ProductionRules
 
   let nonterminal_map =
     let _, map =
@@ -50,8 +41,8 @@ module General (Grammar : GRAMMAR) = struct
 
   let terminal_map =
     List.fold_left
-      (fun map -> function lhs, action -> TerminalMap.add lhs action map)
-      TerminalMap.empty consumption_rules
+      (fun map (c : shift consumption) -> TerminalMap.add c.lhs c.action map)
+      TerminalMap.empty Grammar.consumptions
 
   let terminal_to_parser t toks =
     let action = TerminalMap.find t terminal_map in
@@ -82,10 +73,10 @@ module General (Grammar : GRAMMAR) = struct
     let accumulator, toks' = production_to_accumulator fs rhs toks in
     (action accumulator, toks')
 
-  let productions_to_parsers (pss : production list) fs =
+  let productions_to_parsers (pss : reduce production list) fs =
     List.fold_left ( >>| ) empty (List.map (production_to_parser fs) pss)
 
-  let parsers = List.map productions_to_parsers productions
+  let parsers = List.map productions_to_parsers grouped_productions
   let parser = fix_poly parsers
   let start = List.nth parser (NonterminalMap.find Grammar.start nonterminal_map)
 
@@ -136,19 +127,10 @@ module LL1 (Grammar : GRAMMAR) = struct
 
   module TerminalMap = Map.Make (Grammar.Terminal)
   module NonterminalMap = Map.Make (Grammar.Nonterminal)
+  module ProductionRules = GroupedProductions (Grammar)
 
-  let production_rules, consumption_rules =
-    List.partition_map
-      (function
-        | Production { lhs; rhss } -> Left (lhs, rhss)
-        | Consumption { lhs; action } -> Right (lhs, action))
-      Grammar.rules
-
-  let production_rules =
-    (Grammar.start, [ Grammar.start_production ]) :: production_rules
-
-  let (nonterminals, productions) : nonterminal list * production list list =
-    List.split production_rules
+  let production_rules = ProductionRules.production_rules
+  let nonterminals = ProductionRules.nonterminals
 
   let nonterminal_map =
     let _, map =
@@ -160,8 +142,8 @@ module LL1 (Grammar : GRAMMAR) = struct
 
   let terminal_map =
     List.fold_left
-      (fun map -> function lhs, action -> TerminalMap.add lhs action map)
-      TerminalMap.empty consumption_rules
+      (fun map (c : shift consumption) -> TerminalMap.add c.lhs c.action map)
+      TerminalMap.empty Grammar.consumptions
 
   let terminal_to_parser t toks =
     let action = TerminalMap.find t terminal_map in
@@ -200,7 +182,8 @@ module LL1 (Grammar : GRAMMAR) = struct
     in
     { parser; guard }
 
-  let productions_to_parsers ((lhs, pss) : nonterminal * production list) fs =
+  let productions_to_parsers
+      ((lhs, pss) : nonterminal * reduce production list) fs =
     let { parser } =
       List.fold_left ( >>| ) empty (List.map (production_to_parser fs lhs) pss)
     in

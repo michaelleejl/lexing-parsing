@@ -1,6 +1,6 @@
-module type ACTION = sig
-  type t
-end
+module type ACTION = sig 
+  type action 
+end 
 
 module type S = sig
   module Tag : Automata.Params.TAG
@@ -19,7 +19,7 @@ module Make (Action : ACTION) = struct
   end
 
   type tag = Tag.t 
-  type action = Action.t
+  type action = Action.action
 
   let table: (tag, action) Hashtbl.t = Hashtbl.create 128
 

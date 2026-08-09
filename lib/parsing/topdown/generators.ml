@@ -12,12 +12,12 @@ module General (Grammar : GRAMMAR) = struct
   module ReductionRegistry =
     Registry.Make
       (struct
-        type t = Grammar.reduce
+        type action = Grammar.reduce
       end)
 
   module ParseStack = struct
     type frame = {
-      remaining : t list;
+      remaining : Sym.t list;
       collected : data list;
       action : ReductionRegistry.Tag.t;
     }
@@ -65,7 +65,7 @@ module General (Grammar : GRAMMAR) = struct
   module ActionRegistry =
     Registry.Make
       (struct
-        type t = token -> ParseStack.t -> ParseStack.t
+        type action = token -> ParseStack.t -> ParseStack.t
       end)
 
   let prod_action syms reduce =
@@ -80,7 +80,8 @@ module General (Grammar : GRAMMAR) = struct
     let rtag = ReductionRegistry.register reduce in
     ActionRegistry.register (prod_action syms rtag)
 
-  module TaggedPda = Automata.Tpda.Make (Terminal) (Grammar) (ActionRegistry.Tag)
+  module TaggedPda =
+    Automata.Tpda.Make (Terminal) (Grammar.Sym) (ActionRegistry.Tag)
 
   module ParseHypothesis = struct
     type t = TaggedPda.config * ParseStack.t [@@deriving compare]
@@ -142,8 +143,8 @@ module General (Grammar : GRAMMAR) = struct
 
   module Transition = struct
     type t =
-      (terminal option * Grammar.t)
-      * (TaggedPda.state * Grammar.t list * ActionRegistry.Tag.t)
+      (terminal option * Grammar.Sym.t)
+      * (TaggedPda.state * Grammar.Sym.t list * ActionRegistry.Tag.t)
     [@@deriving compare]
   end
 
@@ -160,24 +161,19 @@ module General (Grammar : GRAMMAR) = struct
   let alt = TransitionSet.union
   let ( >>| ) = alt
 
-  let rule_to_transition state = function
-    | Production { lhs; rhss } ->
-        let ts =
-          List.map
-            (fun { rhs; action } ->
-              nonterminal_to_transition lhs rhs action state)
-            rhss
-        in
-        TransitionSet.of_list ts
-    | Consumption { lhs; action } ->
-        TransitionSet.singleton (terminal_to_transition lhs action state)
+  let production_to_transition state (p : reduce production) =
+    nonterminal_to_transition p.lhs p.rhs p.action state
 
-  let compile grammar =
+  let consumption_to_transition state (c : shift consumption) =
+    terminal_to_transition c.lhs c.action state
+
+  let compile productions consumptions =
     let state = 0 in
     let ts =
-      List.fold_right ( >>| )
-        (List.map (rule_to_transition state) grammar)
-        TransitionSet.empty
+      TransitionSet.of_list
+        (List.map (production_to_transition state) productions)
+      >>| TransitionSet.of_list
+            (List.map (consumption_to_transition state) consumptions)
     in
     let transitions =
       TransitionSet.fold
@@ -200,10 +196,10 @@ module General (Grammar : GRAMMAR) = struct
         next = (fun _ -> transitions);
       }
 
-  let start_rule =
-    Production { lhs = Grammar.start; rhss = [ Grammar.start_production ] }
-
-  let parser = compile (start_rule :: Grammar.rules)
+  let parser =
+    compile
+      (Grammar.start_production :: Grammar.productions)
+      Grammar.consumptions
 
   let parse tokens =
     let initial_hypothesis =
@@ -232,12 +228,12 @@ module LL1 (Grammar : GRAMMAR) = struct
   module ReductionRegistry =
     Registry.Make
       (struct
-        type t = Grammar.reduce
+        type action = Grammar.reduce
       end)
 
   module ParseStack = struct
     type frame = {
-      remaining : t list;
+      remaining : Sym.t list;
       collected : data list;
       action : ReductionRegistry.Tag.t;
     }
@@ -292,7 +288,7 @@ module LL1 (Grammar : GRAMMAR) = struct
   module ActionRegistry =
     Registry.Make
       (struct
-        type t = token -> ParseStack.t -> ParseStack.t
+        type action = token -> ParseStack.t -> ParseStack.t
       end)
 
   let prod_action syms reduce =
@@ -308,7 +304,7 @@ module LL1 (Grammar : GRAMMAR) = struct
     ActionRegistry.register (prod_action syms tag)
 
   module ParseTable = struct
-    type key = Grammar.t * Terminal.t
+    type key = Grammar.Sym.t * Terminal.t
     type value = ActionRegistry.Tag.t
     type t = (key, value) Hashtbl.t
 
@@ -363,37 +359,28 @@ module LL1 (Grammar : GRAMMAR) = struct
     | _ :: _ -> parse_run (parse_step state)
     | [] -> Grammar.unwrap (ParseStack.unwrap stack)
 
-  let compile grammar =
-    let consumption_rules, production_rules =
-      List.partition_map
-        (function
-          | Consumption { lhs; action } -> Left (lhs, action)
-          | Production { lhs; rhss } -> Right (lhs, rhss))
-        grammar
-    in
+  let compile productions consumptions =
     let start_tag =
-      let { action; _ } = Grammar.start_production in
+      let ({ action; _ } : reduce production) = Grammar.start_production in
       ReductionRegistry.register action
     in
     List.iter
-      (fun (l, a) -> ParseTable.add (T l, l) (register_cons a))
-      consumption_rules;
+      (fun (c : shift consumption) ->
+        ParseTable.add (T c.lhs, c.lhs) (register_cons c.action))
+      consumptions;
     List.iter
-      (fun (lhs, rhss) ->
-        List.iter
-          (fun { rhs; action } ->
-            let tag = register_prod rhs action in
-            let firsts = First.syms rhs in
-            let firsts' = unwrap firsts in
-            TSet.iter (fun term -> ParseTable.add (N lhs, term) tag) firsts';
-            if TESet.mem TE.Eps firsts then
-              let follows = Follow.nonterminal lhs in
-              TSet.iter (fun term -> ParseTable.add (N lhs, term) tag) follows)
-          rhss)
-      production_rules;
+      (fun (p : reduce production) ->
+        let tag = register_prod p.rhs p.action in
+        let firsts = First.syms p.rhs in
+        let firsts' = unwrap firsts in
+        TSet.iter (fun term -> ParseTable.add (N p.lhs, term) tag) firsts';
+        if TESet.mem TE.Eps firsts then
+          let follows = Follow.nonterminal p.lhs in
+          TSet.iter (fun term -> ParseTable.add (N p.lhs, term) tag) follows)
+      productions;
     start_tag
 
-  let start_tag = compile Grammar.rules
+  let start_tag = compile Grammar.productions Grammar.consumptions
 
   let parse tokens =
     let { rhs } = Grammar.start_production in

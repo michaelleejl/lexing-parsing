@@ -8,7 +8,7 @@ module Report (Grammar : Lang.GRAMMAR) = struct
 
   let nt = Grammar.Nonterminal.to_string
   let term = Grammar.Terminal.to_string
-  let sym = Grammar.to_string
+  let sym = Grammar.Sym.to_string
   let te = function A.TE.Eps -> "eps" | A.TE.Term t -> term t
   let tset s = A.TSet.elements s |> List.map term |> String.concat " "
   let teset s = A.TESet.elements s |> List.map te |> String.concat " "
@@ -18,12 +18,17 @@ module Report (Grammar : Lang.GRAMMAR) = struct
     | rhs -> List.map sym rhs |> String.concat " "
 
   let productions =
-    (Grammar.start, [ Grammar.start_production ])
-    :: List.filter_map
-         (function
-           | Grammar.Production { lhs; rhss } -> Some (lhs, rhss)
-           | Grammar.Consumption _ -> None)
-         Grammar.rules
+    let rec group = function
+      | [] -> []
+      | (p : Grammar.reduce Grammar.production) :: ps ->
+          let same, rest =
+            List.partition
+              (fun (q : Grammar.reduce Grammar.production) -> q.lhs = p.lhs)
+              ps
+          in
+          (p.lhs, p :: same) :: group rest
+    in
+    group (Grammar.start_production :: Grammar.productions)
 
   let nullable () =
     A.NTSet.elements A.Nullable.set
@@ -39,7 +44,7 @@ module Report (Grammar : Lang.GRAMMAR) = struct
       (fun n ts -> printf "follow(%-5s) = %s\n" (nt n) (tset ts))
       A.Follow.table
 
-  let predict_set lhs (p : Grammar.production) =
+  let predict_set lhs (p : Grammar.reduce Grammar.production) =
     let first = A.First.syms p.rhs |> A.unwrap in
     if A.Nullable.syms p.rhs then A.TSet.union first (A.Follow.nonterminal lhs)
     else first
@@ -48,7 +53,7 @@ module Report (Grammar : Lang.GRAMMAR) = struct
     List.iter
       (fun (lhs, rhss) ->
         List.iter
-          (fun (p : Grammar.production) ->
+          (fun (p : Grammar.reduce Grammar.production) ->
             printf "%-5s ::= %-24s { %s }\n" (nt lhs) (rhs_str p.rhs)
               (tset (predict_set lhs p)))
           rhss)

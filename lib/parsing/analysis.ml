@@ -1,7 +1,7 @@
 open Lang
 open Ppx_compare_lib.Builtin
 
-module GrammarAnalysis (Grammar : GRAMMAR) = struct
+module GrammarAnalysis (Grammar : BNF) = struct
   open Grammar
   module TSet = Set.Make (Grammar.Terminal)
   module NTMap = Map.Make (Grammar.Nonterminal)
@@ -25,23 +25,7 @@ module GrammarAnalysis (Grammar : GRAMMAR) = struct
     let y = f x in
     if eq x y then x else fix eq f y
 
-  let production_rules, consumption_rules =
-    List.partition_map
-      (function
-        | Production { lhs; rhss } -> Left (lhs, rhss)
-        | Consumption { lhs; action } -> Right (lhs, action))
-      Grammar.rules
-
-  let production_rules =
-    (Grammar.start, [ Grammar.start_production ]) :: production_rules
-
-  let (nonterminals, productions) : nonterminal list * production list list =
-    List.split production_rules
-
-  let nt_to_prod_map =
-    List.fold_left
-      (fun map -> fun (lhs, rhss) -> NTMap.add lhs rhss map)
-      NTMap.empty production_rules
+  let all_productions = Grammar.start_production :: Grammar.productions
 
   module Nullable = struct
     let set =
@@ -52,11 +36,12 @@ module GrammarAnalysis (Grammar : GRAMMAR) = struct
       let is_rhs_nullable nullable { rhs } =
         List.for_all (is_sym_nullable nullable) rhs
       in
-      let is_nullable nullable nt =
-        NTMap.find nt nt_to_prod_map |> List.exists (is_rhs_nullable nullable)
-      in
       let step nullable =
-        List.filter (is_nullable nullable) nonterminals |> NTSet.of_list
+        List.filter_map
+          (fun (p : p_action production) ->
+            if is_rhs_nullable nullable p then Some p.lhs else None)
+          all_productions
+        |> NTSet.of_list
       in
       fix NTSet.equal step NTSet.empty
 
@@ -80,27 +65,18 @@ module GrammarAnalysis (Grammar : GRAMMAR) = struct
         if Nullable.syms rhs then TESet.add Eps (first_seq firsts rhs)
         else first_seq firsts rhs
       in
-      let update_first firsts (nonterminal, rhss) =
-        let first_set = NTMap.find nonterminal firsts in
-        let updates =
-          List.map (first_rhs firsts) rhss
-          |> List.fold_left TESet.union TESet.empty
-        in
-        TESet.union first_set updates
-      in
-
       let step firsts =
         List.fold_left
-          (fun map ->
-            fun ((nt, _) as p) ->
-             let new_firsts = update_first firsts p in
-             NTMap.add nt new_firsts map)
-          firsts production_rules
+          (fun map (p : p_action production) ->
+            NTMap.add p.lhs
+              (TESet.union (NTMap.find p.lhs map) (first_rhs firsts p))
+              map)
+          firsts all_productions
       in
       let initial =
         List.fold_left
-          (fun map -> fun nt -> NTMap.add nt TESet.empty map)
-          NTMap.empty nonterminals
+          (fun map (p : p_action production) -> NTMap.add p.lhs TESet.empty map)
+          NTMap.empty all_productions
       in
       fix (NTMap.equal TESet.equal) step initial
 
@@ -138,22 +114,16 @@ module GrammarAnalysis (Grammar : GRAMMAR) = struct
         in
         follow_seq rhs
       in
-      let follow_updates follows lhs rhss =
-        List.map (follow_rhs follows lhs) rhss
-        |> List.fold_left (NTMap.union union_sets) NTMap.empty
-      in
       let follow_step follows =
         List.fold_left
-          (fun follow_map ->
-            fun (lhs, rhss) ->
-             (NTMap.union union_sets) follow_map
-               (follow_updates follows lhs rhss))
-          follows production_rules
+          (fun follow_map (p : p_action production) ->
+            NTMap.union union_sets follow_map (follow_rhs follows p.lhs p))
+          follows all_productions
       in
       let initial =
         List.fold_left
-          (fun map -> fun nt -> NTMap.add nt TSet.empty map)
-          NTMap.empty nonterminals
+          (fun map (p : p_action production) -> NTMap.add p.lhs TSet.empty map)
+          NTMap.empty all_productions
       in
       fix (NTMap.equal TSet.equal) follow_step initial
 
