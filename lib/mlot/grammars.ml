@@ -42,6 +42,9 @@ module Common = struct
   type p_action = reduce
   type c_action = shift
 
+  let reduce r ds = r ds
+  let shift s tok = s tok
+
   let token_to_terminal (t : token) =
     match t with
     | IDENT _ -> Terminal.IDENT

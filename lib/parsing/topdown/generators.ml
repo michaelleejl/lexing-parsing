@@ -4,22 +4,16 @@ open Ppx_compare_lib.Builtin
 exception ParseFail of string
 
 module General (Grammar : GRAMMAR) = struct
-  open Grammar
+  open Elaborate (Grammar)
 
   type token = Grammar.token
   type ast = Grammar.ast
-
-  module ReductionRegistry =
-    Registry.Make
-      (struct
-        type action = Grammar.reduce
-      end)
 
   module ParseStack = struct
     type frame = {
       remaining : Sym.t list;
       collected : data list;
-      action : ReductionRegistry.Tag.t;
+      action : reduction_id;
     }
     [@@deriving compare]
 
@@ -38,8 +32,7 @@ module General (Grammar : GRAMMAR) = struct
       | [ f ] -> [ f ]
       | f1 :: f2 :: fs as frames ->
           if is_filled f1 then
-            let r = ReductionRegistry.get f1.action in
-            let d = r (List.rev f1.collected) in
+            let d = reduce f1.action (List.rev f1.collected) in
             normalise (fill_frame f2 d :: fs)
           else frames
 
@@ -56,8 +49,7 @@ module General (Grammar : GRAMMAR) = struct
       | [] -> raise (ParseFail "cannot unwrap empty stack")
       | [ f ] ->
           if is_filled f then
-            let r = ReductionRegistry.get f.action in
-            r (List.rev f.collected)
+            reduce f.action (List.rev f.collected)
           else raise (ParseFail "cannot unwrap partially filled frame")
       | _ -> raise (ParseFail "cannot unwrap non-singleton stack")
   end
@@ -65,20 +57,17 @@ module General (Grammar : GRAMMAR) = struct
   module ActionRegistry =
     Registry.Make
       (struct
-        type action = token -> ParseStack.t -> ParseStack.t
+        type elt = token -> ParseStack.t -> ParseStack.t
       end)
 
-  let prod_action syms reduce =
+  let prod_action syms r_id =
    fun _ s ->
-    let f = ParseStack.create_frame syms reduce in
+    let f = ParseStack.create_frame syms r_id in
     ParseStack.push s f
 
-  let cons_action shift = fun token s -> ParseStack.fill s (shift token)
-  let register_cons shift = ActionRegistry.register (cons_action shift)
-
-  let register_prod syms reduce =
-    let rtag = ReductionRegistry.register reduce in
-    ActionRegistry.register (prod_action syms rtag)
+  let register_prod syms r_id = ActionRegistry.register (prod_action syms r_id)
+  let cons_action s_id = fun token s -> ParseStack.fill s (shift s_id token)
+  let register_cons s_id = ActionRegistry.register (cons_action s_id)
 
   module TaggedPda =
     Automata.Tpda.Make (Terminal) (Grammar.Sym) (ActionRegistry.Tag)
@@ -196,10 +185,7 @@ module General (Grammar : GRAMMAR) = struct
         next = (fun _ -> transitions);
       }
 
-  let parser =
-    compile
-      (Grammar.start_production :: Grammar.productions)
-      Grammar.consumptions
+  let parser = compile (start_production :: productions) consumptions
 
   let parse tokens =
     let initial_hypothesis =
@@ -220,22 +206,16 @@ module General (Grammar : GRAMMAR) = struct
 end
 
 module LL1 (Grammar : GRAMMAR) = struct
-  open Grammar
+  open Elaborate (Grammar)
 
   type token = Grammar.token
   type ast = Grammar.ast
-
-  module ReductionRegistry =
-    Registry.Make
-      (struct
-        type action = Grammar.reduce
-      end)
 
   module ParseStack = struct
     type frame = {
       remaining : Sym.t list;
       collected : data list;
-      action : ReductionRegistry.Tag.t;
+      action : reduction_id;
     }
     [@@deriving compare]
 
@@ -254,8 +234,7 @@ module LL1 (Grammar : GRAMMAR) = struct
       | [ f ] -> [ f ]
       | f1 :: f2 :: fs as frames ->
           if is_filled f1 then
-            let r = ReductionRegistry.get f1.action in
-            let d = r (List.rev f1.collected) in
+            let d = reduce f1.action (List.rev f1.collected) in
             normalise (fill_frame f2 d :: fs)
           else frames
 
@@ -279,8 +258,7 @@ module LL1 (Grammar : GRAMMAR) = struct
       | [] -> raise (ParseFail "cannot unwrap empty stack")
       | [ f ] ->
           if is_filled f then
-            let r = ReductionRegistry.get f.action in
-            r (List.rev f.collected)
+            reduce f.action (List.rev f.collected)
           else raise (ParseFail "cannot unwrap partially filled frame")
       | _ -> raise (ParseFail "cannot unwrap non-singleton stack")
   end
@@ -288,20 +266,17 @@ module LL1 (Grammar : GRAMMAR) = struct
   module ActionRegistry =
     Registry.Make
       (struct
-        type action = token -> ParseStack.t -> ParseStack.t
+        type elt = token -> ParseStack.t -> ParseStack.t
       end)
 
-  let prod_action syms reduce =
+  let prod_action syms r_id =
    fun _ s ->
-    let f = ParseStack.create_frame syms reduce in
+    let f = ParseStack.create_frame syms r_id in
     ParseStack.push s f
 
-  let cons_action shift = fun token s -> ParseStack.fill s (shift token)
-  let register_cons shift = ActionRegistry.register (cons_action shift)
-
-  let register_prod syms reduce =
-    let tag = ReductionRegistry.register reduce in
-    ActionRegistry.register (prod_action syms tag)
+  let register_prod syms r_id = ActionRegistry.register (prod_action syms r_id)
+  let cons_action s_id = fun token s -> ParseStack.fill s (shift s_id token)
+  let register_cons s_id = ActionRegistry.register (cons_action s_id)
 
   module ParseTable = struct
     type key = Grammar.Sym.t * Terminal.t
@@ -360,10 +335,6 @@ module LL1 (Grammar : GRAMMAR) = struct
     | [] -> Grammar.unwrap (ParseStack.unwrap stack)
 
   let compile productions consumptions =
-    let start_tag =
-      let ({ action; _ } : reduce production) = Grammar.start_production in
-      ReductionRegistry.register action
-    in
     List.iter
       (fun (c : shift consumption) ->
         ParseTable.add (T c.lhs, c.lhs) (register_cons c.action))
@@ -377,13 +348,14 @@ module LL1 (Grammar : GRAMMAR) = struct
         if TESet.mem TE.Eps firsts then
           let follows = Follow.nonterminal p.lhs in
           TSet.iter (fun term -> ParseTable.add (N p.lhs, term) tag) follows)
-      productions;
-    start_tag
+      productions;;
 
-  let start_tag = compile Grammar.productions Grammar.consumptions
+  compile productions consumptions
+
+  let start_tag = start_production.action
 
   let parse tokens =
-    let { rhs } = Grammar.start_production in
+    let { rhs } = start_production in
     let frame = ParseStack.create_frame rhs start_tag in
     parse_run { tokens = tokens @ [ Grammar.eof ]; stack = [ frame ] }
 end

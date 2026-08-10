@@ -27,9 +27,7 @@ module General (Grammar : GRAMMAR) = struct
   module TerminalMap = Map.Make (Grammar.Terminal)
   module NonterminalMap = Map.Make (Grammar.Nonterminal)
 
-  module ProductionRules = GroupedProductions (Grammar)
-
-  open ProductionRules
+  open Views (Grammar)
 
   let nonterminal_map =
     let _, map =
@@ -50,7 +48,7 @@ module General (Grammar : GRAMMAR) = struct
       match toks with
       | tok :: toks' ->
           let t' = Grammar.token_to_terminal tok in
-          if t = t' then (action tok, toks')
+          if t = t' then (Grammar.shift action tok, toks')
           else raise (ParseFail "terminal mismatch")
       | [] -> raise (ParseFail "expected a terminal")
     with Fail -> raise (ParseFail "terminal")
@@ -71,7 +69,7 @@ module General (Grammar : GRAMMAR) = struct
 
   let production_to_parser fs { rhs; action } toks =
     let accumulator, toks' = production_to_accumulator fs rhs toks in
-    (action accumulator, toks')
+    (Grammar.reduce action accumulator, toks')
 
   let productions_to_parsers (pss : reduce production list) fs =
     List.fold_left ( >>| ) empty (List.map (production_to_parser fs) pss)
@@ -127,11 +125,7 @@ module LL1 (Grammar : GRAMMAR) = struct
 
   module TerminalMap = Map.Make (Grammar.Terminal)
   module NonterminalMap = Map.Make (Grammar.Nonterminal)
-  module ProductionRules = GroupedProductions (Grammar)
-
-  let production_rules = ProductionRules.production_rules
-  let nonterminals = ProductionRules.nonterminals
-
+  open Views (Grammar)
   let nonterminal_map =
     let _, map =
       List.fold_left
@@ -151,7 +145,7 @@ module LL1 (Grammar : GRAMMAR) = struct
       match toks with
       | tok :: toks' ->
           let t' = Grammar.token_to_terminal tok in
-          if t = t' then (action tok, toks')
+          if t = t' then (Grammar.shift action tok, toks')
           else raise (ParseFail "terminal mismatch")
       | [] -> raise (ParseFail "expected a terminal")
     with Fail -> raise (ParseFail "terminal")
@@ -173,7 +167,7 @@ module LL1 (Grammar : GRAMMAR) = struct
   let production_to_parser fs lhs { rhs; action } =
     let parser toks =
       let accumulator, toks' = production_to_accumulator fs rhs toks in
-      (action accumulator, toks')
+      (Grammar.reduce action accumulator, toks')
     in
     let guard =
       let first = First.syms rhs |> unwrap in
