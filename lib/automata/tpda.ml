@@ -87,10 +87,9 @@ module Make (Input : INPUT) (StackSym : STACK_SYM) (Tag : TAG) = struct
 
   let step_eps pda cfgs = step pda cfgs None
 
-  let rec epsilon_closure pda traces =
-    let traces' = TraceSet.union traces (step_eps pda traces) in
-    if TraceSet.equal traces traces' then traces
-    else epsilon_closure pda traces'
+  let epsilon_closure pda =
+    Fixpoint.fix ~eq:TraceSet.equal (fun traces ->
+        TraceSet.union traces (step_eps pda traces))
 
   let consume pda traces tok =
     let traces' = epsilon_closure pda traces in

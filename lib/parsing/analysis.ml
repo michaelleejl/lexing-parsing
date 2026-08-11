@@ -1,4 +1,5 @@
 open Lang
+open Fixpoint
 open Ppx_compare_lib.Builtin
 
 module GrammarAnalysis (Grammar : BNF) = struct
@@ -21,10 +22,6 @@ module GrammarAnalysis (Grammar : BNF) = struct
 
   let strip te_set = TESet.diff te_set (TESet.singleton Eps)
 
-  let rec fix eq f x =
-    let y = f x in
-    if eq x y then x else fix eq f y
-
   let all_productions = Grammar.start_production :: Grammar.productions
 
   module Nullable = struct
@@ -43,7 +40,7 @@ module GrammarAnalysis (Grammar : BNF) = struct
           all_productions
         |> NTSet.of_list
       in
-      fix NTSet.equal step NTSet.empty
+      fix ~eq:NTSet.equal step NTSet.empty
 
     let sym = function T _ -> false | N n -> NTSet.mem n set
     let syms = List.for_all sym
@@ -78,7 +75,7 @@ module GrammarAnalysis (Grammar : BNF) = struct
           (fun map (p : p_action production) -> NTMap.add p.lhs TESet.empty map)
           NTMap.empty all_productions
       in
-      fix (NTMap.equal TESet.equal) step initial
+      fix ~eq:(NTMap.equal TESet.equal) step initial
 
     let sym = function
       | T t -> TESet.singleton (Term t)
@@ -125,7 +122,7 @@ module GrammarAnalysis (Grammar : BNF) = struct
           (fun map (p : p_action production) -> NTMap.add p.lhs TSet.empty map)
           NTMap.empty all_productions
       in
-      fix (NTMap.equal TSet.equal) follow_step initial
+      fix ~eq:(NTMap.equal TSet.equal) follow_step initial
 
     let nonterminal nonterm = NTMap.find nonterm table
   end

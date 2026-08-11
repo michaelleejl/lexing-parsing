@@ -212,9 +212,7 @@ module Make (Input : INPUT) = struct
       (fun q -> fun acc -> StateSet.union acc (epsilon_step next q))
       qs qs
 
-  let rec epsilon_closure n qs =
-    let qs' = epsilon_steps n.next qs in
-    if StateSet.equal qs' qs then qs else epsilon_closure n qs'
+  let epsilon_closure n = Fixpoint.fix ~eq:StateSet.equal (epsilon_steps n.next)
 
   let initialise n = epsilon_closure n (StateSet.singleton n.initial)
 

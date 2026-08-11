@@ -19,10 +19,6 @@ module General (Grammar : GRAMMAR) = struct
   let ( >>& ) = seq
   let empty _ = raise (ParseFail "empty")
   let eps toks = ([], toks)
-  let rec fix f x = f (fix f) x
-
-  let fix_poly fs =
-    fix (fun self fs -> List.map (fun f x -> f (self fs) x) fs) fs
 
   module TerminalMap = Map.Make (Grammar.Terminal)
   module NonterminalMap = Map.Make (Grammar.Nonterminal)
@@ -75,7 +71,7 @@ module General (Grammar : GRAMMAR) = struct
     List.fold_left ( >>| ) empty (List.map (production_to_parser fs) pss)
 
   let parsers = List.map productions_to_parsers grouped_productions
-  let parser = fix_poly parsers
+  let parser = Fixpoint.poly parsers
   let start = List.nth parser (NonterminalMap.find Grammar.start nonterminal_map)
 
   let parse ts =
@@ -118,10 +114,6 @@ module LL1 (Grammar : GRAMMAR) = struct
   let ( >>& ) = seq
   let empty = { guard = TSet.empty; parser = (fun _ -> assert false) }
   let eps toks = ([], toks)
-  let rec fix f x = f (fix f) x
-
-  let fix_poly fs =
-    fix (fun self fs -> List.map (fun f x -> f (self fs) x) fs) fs
 
   module TerminalMap = Map.Make (Grammar.Terminal)
   module NonterminalMap = Map.Make (Grammar.Nonterminal)
@@ -184,7 +176,7 @@ module LL1 (Grammar : GRAMMAR) = struct
     parser
 
   let parsers = List.map productions_to_parsers production_rules
-  let parser = fix_poly parsers
+  let parser = Fixpoint.poly parsers
   let start = List.nth parser (NonterminalMap.find Grammar.start nonterminal_map)
 
   let parse ts =
