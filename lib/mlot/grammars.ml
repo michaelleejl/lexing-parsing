@@ -35,15 +35,13 @@ module Common = struct
     | Exprs of ast list
   [@@deriving compare]
 
-  let unwrap = function Expr e -> e | _ -> failwith "Must be Expr type"
+  let finish = function Expr e -> e | _ -> failwith "Must be Expr type"
 
-  type reduce = data list -> data
-  type shift = token -> data
-  type p_action = reduce
-  type c_action = shift
+  type builder = data list -> data
+  type reader = token -> data
 
-  let reduce r ds = r ds
-  let shift s tok = s tok
+  let build b ds = b ds
+  let read r tok = r tok
 
   let token_to_terminal (t : token) =
     match t with
@@ -107,22 +105,23 @@ module General = struct
     | N of nonterminal [@stringable.nested ""]
   [@@deriving compare, to_string]
 
-  type production = { lhs : nonterminal; rhs : sym list; action : p_action }
-  type consumption = { lhs : terminal; action : c_action }
+  type production = { lhs : nonterminal; rhs : sym list; builder : builder }
+  type productions = { start : production; rest : production list }
+  type consumption = { lhs : terminal; reader : reader }
 
   (* ---------- E ----------------*)
   let prod_e_fun =
     {
       lhs = E;
       rhs = [ T FUN; T IDENT; T ARROW; N E ];
-      action = [%act function [ _; Name x; _; Expr e ] -> mk_fun x e];
+      builder = [%act function [ _; Name x; _; Expr e ] -> mk_fun x e];
     }
 
   let prod_e_let =
     {
       lhs = E;
       rhs = [ T LET; T IDENT; T EQUALS; N E; T IN; N E ];
-      action =
+      builder =
         [%act
           function [ _; Name x; _; Expr e1; _; Expr e2 ] -> mk_let x e1 e2];
     }
@@ -131,7 +130,7 @@ module General = struct
     {
       lhs = E;
       rhs = [ T LET; T REC; T IDENT; T EQUALS; N E; T IN; N E ];
-      action =
+      builder =
         [%act
           function
           | [ _; _; Name x; _; Expr e1; _; Expr e2 ] -> mk_letrec x e1 e2];
@@ -141,7 +140,7 @@ module General = struct
     {
       lhs = E;
       rhs = [ N T ];
-      action = [%act function [ Expr e ] -> mk_one e];
+      builder = [%act function [ Expr e ] -> mk_one e];
     }
 
   let prod_e = [ prod_e_fun; prod_e_let; prod_e_let_rec; prod_e_t ]
@@ -152,7 +151,7 @@ module General = struct
     {
       lhs = Nonterminal.T;
       rhs = [ N F; N T' ];
-      action = [%act function [ Expr e; Exprs es ] -> mk_eq e es];
+      builder = [%act function [ Expr e; Exprs es ] -> mk_eq e es];
     }
 
   let prod_t = [ prod_t_f ]
@@ -163,11 +162,11 @@ module General = struct
     {
       lhs = T';
       rhs = [ T EQUALS; N F; N T' ];
-      action = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
+      builder = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
     }
 
   let prod_t'_eps =
-    { lhs = T'; rhs = []; action = [%act function [] -> mk_nil] }
+    { lhs = T'; rhs = []; builder = [%act function [] -> mk_nil] }
 
   let prod_t' = [ prod_t'_equals; prod_t'_eps ]
 
@@ -177,7 +176,7 @@ module General = struct
     {
       lhs = F;
       rhs = [ N G; N F' ];
-      action = [%act function [ Expr e; Exprs es ] -> mk_plus e es];
+      builder = [%act function [ Expr e; Exprs es ] -> mk_plus e es];
     }
 
   let prod_f = [ prod_f_g ]
@@ -188,11 +187,11 @@ module General = struct
     {
       lhs = F';
       rhs = [ T PLUS; N G; N F' ];
-      action = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
+      builder = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
     }
 
   let prod_f'_eps =
-    { lhs = F'; rhs = []; action = [%act function [] -> mk_nil] }
+    { lhs = F'; rhs = []; builder = [%act function [] -> mk_nil] }
 
   let prod_f' = [ prod_f'_plus; prod_f'_eps ]
 
@@ -202,7 +201,7 @@ module General = struct
     {
       lhs = G;
       rhs = [ N S; N G' ];
-      action = [%act function [ Expr e; Exprs es ] -> mk_app e es];
+      builder = [%act function [ Expr e; Exprs es ] -> mk_app e es];
     }
 
   let prod_g = [ prod_g_s ]
@@ -213,11 +212,11 @@ module General = struct
     {
       lhs = G';
       rhs = [ N S; N G' ];
-      action = [%act function [ Expr e; Exprs es ] -> mk_cons e es];
+      builder = [%act function [ Expr e; Exprs es ] -> mk_cons e es];
     }
 
   let prod_g'_eps =
-    { lhs = G'; rhs = []; action = [%act function [] -> mk_nil] }
+    { lhs = G'; rhs = []; builder = [%act function [] -> mk_nil] }
 
   let prod_g' = [ prod_g'_s; prod_g'_eps ]
 
@@ -227,35 +226,35 @@ module General = struct
     {
       lhs = S;
       rhs = [ T IDENT ];
-      action = [%act function [ Name x ] -> mk_var x];
+      builder = [%act function [ Name x ] -> mk_var x];
     }
 
   let prod_s_num =
     {
       lhs = S;
       rhs = [ T NUM ];
-      action = [%act function [ Num n ] -> mk_num n];
+      builder = [%act function [ Num n ] -> mk_num n];
     }
 
   let prod_s_true =
     {
       lhs = S;
       rhs = [ T TRUE ];
-      action = [%act function [ None ] -> mk_bool true];
+      builder = [%act function [ None ] -> mk_bool true];
     }
 
   let prod_s_false =
     {
       lhs = S;
       rhs = [ T FALSE ];
-      action = [%act function [ None ] -> mk_bool false];
+      builder = [%act function [ None ] -> mk_bool false];
     }
 
   let prod_s_lparen =
     {
       lhs = S;
       rhs = [ T LPAREN; N E; T RPAREN ];
-      action = [%act function [ _; Expr e; _ ] -> mk_one e];
+      builder = [%act function [ _; Expr e; _ ] -> mk_one e];
     }
 
   let prod_s =
@@ -266,14 +265,14 @@ module General = struct
     let term = token_to_terminal tok in
     {
       lhs = term;
-      action = (function t when t = tok -> None | _ -> raise Fail);
+      reader = (function t when t = tok -> None | _ -> raise Fail);
     }
 
   let cons_ident : consumption =
-    { lhs = IDENT; action = [%act function Token.IDENT x -> Name x] }
+    { lhs = IDENT; reader = [%act function Token.IDENT x -> Name x] }
 
   let cons_num : consumption =
-    { lhs = NUM; action = [%act function Token.NUM n -> Num n] }
+    { lhs = NUM; reader = [%act function Token.NUM n -> Num n] }
 
   let cons_true = cons_silent TRUE
   let cons_false = cons_silent FALSE
@@ -292,16 +291,18 @@ module General = struct
   (* Start ::= E EOF *)
   let start = Nonterminal.Start
 
-  let start_production =
+  let productions =
     {
-      lhs = start;
-      rhs = [ N E; T EOF ];
-      action = [%act function [ Expr e; _ ] -> mk_one e];
+      start =
+        {
+          lhs = start;
+          rhs = [ N E; T EOF ];
+          builder = [%act function [ Expr e; _ ] -> mk_one e];
+        };
+      rest =
+        List.concat
+          [ prod_e; prod_t; prod_t'; prod_f; prod_f'; prod_g; prod_g'; prod_s ];
     }
-
-  let non_start_productions =
-    List.concat
-      [ prod_e; prod_t; prod_t'; prod_f; prod_f'; prod_g; prod_g'; prod_s ]
 
   let consumptions =
     [
@@ -344,29 +345,30 @@ module LeftFactored = struct
     | N of nonterminal [@stringable.nested ""]
   [@@deriving compare, to_string]
 
-  type production = { lhs : nonterminal; rhs : sym list; action : p_action }
-  type consumption = { lhs : terminal; action : c_action }
+  type production = { lhs : nonterminal; rhs : sym list; builder : builder }
+  type productions = { start : production; rest : production list }
+  type consumption = { lhs : terminal; reader : reader }
 
   (* ---------- E ----------------*)
   let prod_e_fun =
     {
       lhs = E;
       rhs = [ T FUN; T IDENT; T ARROW; N E ];
-      action = [%act function [ _; Name x; _; Expr e ] -> mk_fun x e];
+      builder = [%act function [ _; Name x; _; Expr e ] -> mk_fun x e];
     }
 
   let prod_e_let =
     {
       lhs = E;
       rhs = [ T LET; N E' ];
-      action = [%act function [ _; Expr e ] -> mk_one e];
+      builder = [%act function [ _; Expr e ] -> mk_one e];
     }
 
   let prod_e_t =
     {
       lhs = E;
       rhs = [ N T ];
-      action = [%act function [ Expr e ] -> mk_one e];
+      builder = [%act function [ Expr e ] -> mk_one e];
     }
 
   let prod_e = [ prod_e_fun; prod_e_let; prod_e_t ]
@@ -376,7 +378,7 @@ module LeftFactored = struct
     {
       lhs = E';
       rhs = [ T IDENT; T EQUALS; N E; T IN; N E ];
-      action =
+      builder =
         [%act function [ Name x; _; Expr e1; _; Expr e2 ] -> mk_let x e1 e2];
     }
 
@@ -384,7 +386,7 @@ module LeftFactored = struct
     {
       lhs = E';
       rhs = [ T REC; T IDENT; T EQUALS; N E; T IN; N E ];
-      action =
+      builder =
         [%act
           function [ _; Name x; _; Expr e1; _; Expr e2 ] -> mk_letrec x e1 e2];
     }
@@ -397,7 +399,7 @@ module LeftFactored = struct
     {
       lhs = Nonterminal.T;
       rhs = [ N F; N T' ];
-      action = [%act function [ Expr e; Exprs es ] -> mk_eq e es];
+      builder = [%act function [ Expr e; Exprs es ] -> mk_eq e es];
     }
 
   let prod_t = [ prod_t_f ]
@@ -408,12 +410,12 @@ module LeftFactored = struct
     {
       lhs = T';
       rhs = [ T EQUALS; N F; N T' ];
-      action = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
+      builder = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
     }
 
   (*    | eps *)
   let prod_t'_eps =
-    { lhs = T'; rhs = []; action = [%act function [] -> mk_nil] }
+    { lhs = T'; rhs = []; builder = [%act function [] -> mk_nil] }
 
   let prod_t' = [ prod_t'_equals; prod_t'_eps ]
 
@@ -423,7 +425,7 @@ module LeftFactored = struct
     {
       lhs = F;
       rhs = [ N G; N F' ];
-      action = [%act function [ Expr e; Exprs es ] -> mk_plus e es];
+      builder = [%act function [ Expr e; Exprs es ] -> mk_plus e es];
     }
 
   let prod_f = [ prod_f_g ]
@@ -434,12 +436,12 @@ module LeftFactored = struct
     {
       lhs = F';
       rhs = [ T PLUS; N G; N F' ];
-      action = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
+      builder = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
     }
 
   (*    | eps *)
   let prod_f'_eps =
-    { lhs = F'; rhs = []; action = [%act function [] -> mk_nil] }
+    { lhs = F'; rhs = []; builder = [%act function [] -> mk_nil] }
 
   let prod_f' = [ prod_f'_plus; prod_f'_eps ]
 
@@ -449,7 +451,7 @@ module LeftFactored = struct
     {
       lhs = G;
       rhs = [ N S; N G' ];
-      action = [%act function [ Expr e; Exprs es ] -> mk_app e es];
+      builder = [%act function [ Expr e; Exprs es ] -> mk_app e es];
     }
 
   let prod_g = [ prod_g_s ]
@@ -460,12 +462,12 @@ module LeftFactored = struct
     {
       lhs = G';
       rhs = [ N S; N G' ];
-      action = [%act function [ Expr e; Exprs es ] -> mk_cons e es];
+      builder = [%act function [ Expr e; Exprs es ] -> mk_cons e es];
     }
 
   (*    | eps *)
   let prod_g'_eps =
-    { lhs = G'; rhs = []; action = [%act function [] -> mk_nil] }
+    { lhs = G'; rhs = []; builder = [%act function [] -> mk_nil] }
 
   let prod_g' = [ prod_g'_s; prod_g'_eps ]
 
@@ -475,7 +477,7 @@ module LeftFactored = struct
     {
       lhs = S;
       rhs = [ T IDENT ];
-      action = [%act function [ Name x ] -> mk_var x];
+      builder = [%act function [ Name x ] -> mk_var x];
     }
 
   (*   | n *)
@@ -484,7 +486,7 @@ module LeftFactored = struct
     {
       lhs = S;
       rhs = [ T NUM ];
-      action = [%act function [ Num n ] -> mk_num n];
+      builder = [%act function [ Num n ] -> mk_num n];
     }
 
   (*   | true *)
@@ -492,7 +494,7 @@ module LeftFactored = struct
     {
       lhs = S;
       rhs = [ T TRUE ];
-      action = [%act function [ None ] -> mk_bool true];
+      builder = [%act function [ None ] -> mk_bool true];
     }
 
   (*   | false *)
@@ -500,7 +502,7 @@ module LeftFactored = struct
     {
       lhs = S;
       rhs = [ T FALSE ];
-      action = [%act function [ None ] -> mk_bool false];
+      builder = [%act function [ None ] -> mk_bool false];
     }
 
   (*   | ( E ) *)
@@ -508,7 +510,7 @@ module LeftFactored = struct
     {
       lhs = S;
       rhs = [ T LPAREN; N E; T RPAREN ];
-      action = [%act function [ _; Expr e; _ ] -> mk_one e];
+      builder = [%act function [ _; Expr e; _ ] -> mk_one e];
     }
 
   let prod_s =
@@ -519,14 +521,14 @@ module LeftFactored = struct
     let term = token_to_terminal tok in
     {
       lhs = term;
-      action = (function t when t = tok -> None | _ -> raise Fail);
+      reader = (function t when t = tok -> None | _ -> raise Fail);
     }
 
   let cons_ident : consumption =
-    { lhs = IDENT; action = [%act function Token.IDENT x -> Name x] }
+    { lhs = IDENT; reader = [%act function Token.IDENT x -> Name x] }
 
   let cons_num : consumption =
-    { lhs = NUM; action = [%act function Token.NUM n -> Num n] }
+    { lhs = NUM; reader = [%act function Token.NUM n -> Num n] }
 
   let cons_true = cons_silent TRUE
   let cons_false = cons_silent FALSE
@@ -545,26 +547,28 @@ module LeftFactored = struct
   (* Start ::= E EOF *)
   let start = Nonterminal.Start
 
-  let start_production =
+  let productions =
     {
-      lhs = start;
-      rhs = [ N E; T EOF ];
-      action = [%act function [ Expr e; _ ] -> mk_one e];
+      start =
+        {
+          lhs = start;
+          rhs = [ N E; T EOF ];
+          builder = [%act function [ Expr e; _ ] -> mk_one e];
+        };
+      rest =
+        List.concat
+          [
+            prod_e;
+            prod_e';
+            prod_t;
+            prod_t';
+            prod_f;
+            prod_f';
+            prod_g;
+            prod_g';
+            prod_s;
+          ];
     }
-
-  let non_start_productions =
-    List.concat
-      [
-        prod_e;
-        prod_e';
-        prod_t;
-        prod_t';
-        prod_f;
-        prod_f';
-        prod_g;
-        prod_g';
-        prod_s;
-      ]
 
   let consumptions =
     [

@@ -31,13 +31,13 @@ module type BNF = sig
   type sym = Sym.t = T of terminal | N of nonterminal
   [@@deriving compare, to_string]
 
-  type p_action
-  type c_action
-  type production = { lhs : nonterminal; rhs : sym list; action : p_action }
-  type consumption = { lhs : terminal; action : c_action }
+  type builder
+  type reader
+  type production = { lhs : nonterminal; rhs : sym list; builder : builder }
+  type productions = { start : production; rest : production list }
+  type consumption = { lhs : terminal; reader : reader }
 
-  val start_production : production
-  val non_start_productions : production list
+  val productions : productions
   val consumptions : consumption list
 end
 
@@ -47,14 +47,12 @@ module type GRAMMAR = sig
   type token
   type ast
   type data [@@deriving compare]
-  type reduce
-  type shift
 
-  include BNF with type p_action = reduce and type c_action = shift
+  include BNF
 
-  val reduce : reduce -> data list -> data
-  val shift : shift -> token -> data
-  val unwrap : data -> ast
+  val build : builder -> data list -> data
+  val read : reader -> token -> data
+  val finish : data -> ast
   val token_to_terminal : token -> terminal
   val eof : token
 end
@@ -94,16 +92,16 @@ module type ELABORATED_GRAMMAR = sig
   type token
   type ast
   type data [@@deriving compare]
-  type reduce
-  type shift
+  type builder
+  type reader
 
   module Bnf : ELABORATED_BNF
 
-  val action : Bnf.production -> reduce
-  val consume : Bnf.terminal -> shift
-  val reduce : reduce -> data list -> data
-  val shift : shift -> token -> data
-  val unwrap : data -> ast
+  val builder_of_production : Bnf.production -> builder
+  val reader_of_terminal : Bnf.terminal -> reader
+  val build : builder -> data list -> data
+  val read : reader -> token -> data
+  val finish : data -> ast
   val token_to_terminal : token -> Bnf.terminal
   val eof : token
 end
@@ -117,8 +115,8 @@ module Elaborate (Grammar : GRAMMAR) :
     with type token = Grammar.token
      and type ast = Grammar.ast
      and type data = Grammar.data
-     and type reduce = Grammar.reduce
-     and type shift = Grammar.shift
+     and type builder = Grammar.builder
+     and type reader = Grammar.reader
      and module Bnf.Terminal = Grammar.Terminal
      and module Bnf.Nonterminal = Grammar.Nonterminal
      and module Bnf.Sym = Grammar.Sym = struct
@@ -127,8 +125,8 @@ module Elaborate (Grammar : GRAMMAR) :
   type token = Grammar.token
   type ast = Grammar.ast
   type data = Grammar.data [@@deriving compare]
-  type reduce = Grammar.reduce
-  type shift = Grammar.shift
+  type builder = Grammar.builder
+  type reader = Grammar.reader
 
   module Bnf = struct
     module Terminal = Grammar.Terminal
@@ -153,8 +151,8 @@ module Elaborate (Grammar : GRAMMAR) :
 
     let productions =
       {
-        start = pure Grammar.start_production;
-        rest = List.map pure Grammar.non_start_productions;
+        start = pure Grammar.productions.start;
+        rest = List.map pure Grammar.productions.rest;
       }
 
     let eof_terminal = Grammar.token_to_terminal Grammar.eof
@@ -168,35 +166,35 @@ module Elaborate (Grammar : GRAMMAR) :
 
   module TMap = Map.Make (Grammar.Terminal)
 
-  let reduce_of_production =
+  let builders =
     List.fold_left
       (fun map (p : Grammar.production) ->
         PMap.update (Bnf.pure p)
           (function
-            | None -> Some p.action | Some _ -> raise Duplicate_production)
+            | None -> Some p.builder | Some _ -> raise Duplicate_production)
           map)
       PMap.empty
-      (Grammar.start_production :: Grammar.non_start_productions)
+      (Grammar.productions.start :: Grammar.productions.rest)
 
-  let shift_of_terminal =
+  let readers =
     List.fold_left
-      (fun map (c : Grammar.consumption) ->
-        TMap.update c.lhs
+      (fun map (r : Grammar.consumption) ->
+        TMap.update r.lhs
           (function
-            | None -> Some c.action | Some _ -> raise Duplicate_consumption)
+            | None -> Some r.reader | Some _ -> raise Duplicate_consumption)
           map)
       TMap.empty Grammar.consumptions
 
-  let action p = PMap.find p reduce_of_production
+  let builder_of_production p = PMap.find p builders
 
-  let consume t =
-    match TMap.find_opt t shift_of_terminal with
-    | Some s -> s
+  let reader_of_terminal t =
+    match TMap.find_opt t readers with
+    | Some r -> r
     | None -> raise (Unconsumable_terminal (Bnf.string_of_terminal t))
 
-  let reduce = Grammar.reduce
-  let shift = Grammar.shift
-  let unwrap = Grammar.unwrap
+  let build = Grammar.build
+  let read = Grammar.read
+  let finish = Grammar.finish
   let token_to_terminal = Grammar.token_to_terminal
   let eof = Grammar.eof
 end

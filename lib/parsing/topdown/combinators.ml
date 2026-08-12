@@ -36,12 +36,12 @@ module General (Grammar : GRAMMAR) = struct
     map
 
   let terminal_to_parser t toks =
-    let action = consume t in
+    let r = reader_of_terminal t in
     try
       match toks with
       | tok :: toks' ->
-          let t' = Grammar.token_to_terminal tok in
-          if t = t' then (Grammar.shift action tok, toks')
+          let t' = token_to_terminal tok in
+          if t = t' then (read r tok, toks')
           else raise (ParseFail "terminal mismatch")
       | [] -> raise (ParseFail "expected a terminal")
     with Fail -> raise (ParseFail "terminal")
@@ -62,7 +62,7 @@ module General (Grammar : GRAMMAR) = struct
 
   let production_to_parser fs p toks =
     let accumulator, toks' = production_to_accumulator fs p toks in
-    (Grammar.reduce (action p) accumulator, toks')
+    (build (builder_of_production p) accumulator, toks')
 
   let productions_to_parsers (pss : production list) fs =
     List.fold_left ( >>| ) empty (List.map (production_to_parser fs) pss)
@@ -75,8 +75,8 @@ module General (Grammar : GRAMMAR) = struct
   let start_parser = List.nth parser (NonterminalMap.find start nonterminal_map)
 
   let parse ts =
-    match start_parser (ts @ [ Grammar.eof ]) with
-    | e, [] -> unwrap e
+    match start_parser (ts @ [ eof ]) with
+    | e, [] -> finish e
     | _ -> raise (ParseFail "fail")
 end
 
@@ -99,7 +99,7 @@ module LL1 (Grammar : GRAMMAR) = struct
     if TSet.disjoint g1 g2 then
       let parser = function
         | tok :: _ as toks ->
-            let term = Grammar.token_to_terminal tok in
+            let term = token_to_terminal tok in
             if TSet.mem term g1 then p1 toks
             else if TSet.mem term g2 then p2 toks
             else raise (ParseFail "unexpected token")
@@ -131,12 +131,12 @@ module LL1 (Grammar : GRAMMAR) = struct
     map
 
   let terminal_to_parser t toks =
-    let action = consume t in
+    let r = reader_of_terminal t in
     try
       match toks with
       | tok :: toks' ->
-          let t' = Grammar.token_to_terminal tok in
-          if t = t' then (Grammar.shift action tok, toks')
+          let t' = token_to_terminal tok in
+          if t = t' then (read r tok, toks')
           else raise (ParseFail "terminal mismatch")
       | [] -> raise (ParseFail "expected a terminal")
     with Fail -> raise (ParseFail "terminal")
@@ -158,7 +158,7 @@ module LL1 (Grammar : GRAMMAR) = struct
   let production_to_parser fs lhs p =
     let parser toks =
       let accumulator, toks' = production_to_accumulator fs p toks in
-      (Grammar.reduce (action p) accumulator, toks')
+      (build (builder_of_production p) accumulator, toks')
     in
     let guard =
       let first = First.syms p.rhs |> drop_eps in
@@ -179,6 +179,6 @@ module LL1 (Grammar : GRAMMAR) = struct
 
   let parse ts =
     match start_parser (ts @ [ eof ]) with
-    | e, [] -> unwrap e
+    | e, [] -> finish e
     | _ -> raise (ParseFail "fail")
 end

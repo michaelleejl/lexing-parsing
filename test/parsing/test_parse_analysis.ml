@@ -28,7 +28,7 @@ module Report (Grammar : GRAMMAR) = struct
           in
           (p.lhs, p :: same) :: group rest
     in
-    group (Grammar.start_production :: Grammar.non_start_productions)
+    group (Grammar.productions.start :: Grammar.productions.rest)
 
   let nullable () =
     A.NTSet.elements A.Nullable.set
