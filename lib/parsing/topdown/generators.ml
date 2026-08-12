@@ -62,13 +62,13 @@ module General (Grammar : GRAMMAR) = struct
     type elt = token -> ParseStack.t -> ParseStack.t
   end)
 
-  let build_step production =
+  let predict_step production =
    fun _ s ->
     let f = ParseStack.create_frame production in
     ParseStack.push s f
 
-  let register_builder production =
-    StepRegistry.register (build_step production)
+  let register_prediction production =
+    StepRegistry.register (predict_step production)
 
   let read_step r = fun token s -> ParseStack.fill s (read r token)
   let register_reader r = StepRegistry.register (read_step r)
@@ -143,7 +143,7 @@ module General (Grammar : GRAMMAR) = struct
   module TransitionSet = Set.Make (Transition)
 
   let production_to_transition state (p : production) =
-    let tag = register_builder p in
+    let tag = register_prediction p in
     ((None, N p.lhs), (state, p.rhs, tag))
 
   let terminal_to_transition state terminal =
@@ -268,13 +268,13 @@ module LL1 (Grammar : GRAMMAR) = struct
     type elt = token -> ParseStack.t -> ParseStack.t
   end)
 
-  let build_step production =
+  let predict_step production =
    fun _ s ->
     let f = ParseStack.create_frame production in
     ParseStack.push s f
 
-  let register_builder production =
-    StepRegistry.register (build_step production)
+  let register_prediction production =
+    StepRegistry.register (predict_step production)
 
   let read_step r = fun token s -> ParseStack.fill s (read r token)
   let register_reader r = StepRegistry.register (read_step r)
@@ -342,7 +342,7 @@ module LL1 (Grammar : GRAMMAR) = struct
       terminals;
     List.iter
       (fun (p : production) ->
-        let tag = register_builder p in
+        let tag = register_prediction p in
         let firsts = First.syms p.rhs in
         let firsts' = drop_eps firsts in
         TSet.iter (fun term -> ParseTable.add (N p.lhs, term) tag) firsts';
