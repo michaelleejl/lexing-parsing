@@ -106,8 +106,9 @@ module General = struct
     | T of terminal [@stringable.nested ""]
     | N of nonterminal [@stringable.nested ""]
   [@@deriving compare, to_string]
-  type 'a production = { lhs : nonterminal; rhs : sym list; action : 'a }
-  type 'a consumption = { lhs : terminal; action : 'a }
+
+  type production = { lhs : nonterminal; rhs : sym list; action : p_action }
+  type consumption = { lhs : terminal; action : c_action }
 
   (* ---------- E ----------------*)
   let prod_e_fun =
@@ -137,7 +138,11 @@ module General = struct
     }
 
   let prod_e_t =
-    { lhs = E; rhs = [ N T ]; action = [%act function [ Expr e ] -> mk_one e] }
+    {
+      lhs = E;
+      rhs = [ N T ];
+      action = [%act function [ Expr e ] -> mk_one e];
+    }
 
   let prod_e = [ prod_e_fun; prod_e_let; prod_e_let_rec; prod_e_t ]
 
@@ -161,7 +166,9 @@ module General = struct
       action = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
     }
 
-  let prod_t'_eps = { lhs = T'; rhs = []; action = [%act function [] -> mk_nil] }
+  let prod_t'_eps =
+    { lhs = T'; rhs = []; action = [%act function [] -> mk_nil] }
+
   let prod_t' = [ prod_t'_equals; prod_t'_eps ]
 
   (* ---------- F ----------------*)
@@ -184,7 +191,9 @@ module General = struct
       action = [%act function [ _; Expr e; Exprs es ] -> mk_cons e es];
     }
 
-  let prod_f'_eps = { lhs = F'; rhs = []; action = [%act function [] -> mk_nil] }
+  let prod_f'_eps =
+    { lhs = F'; rhs = []; action = [%act function [] -> mk_nil] }
+
   let prod_f' = [ prod_f'_plus; prod_f'_eps ]
 
   (* ---------- G ----------------*)
@@ -207,7 +216,9 @@ module General = struct
       action = [%act function [ Expr e; Exprs es ] -> mk_cons e es];
     }
 
-  let prod_g'_eps = { lhs = G'; rhs = []; action = [%act function [] -> mk_nil] }
+  let prod_g'_eps =
+    { lhs = G'; rhs = []; action = [%act function [] -> mk_nil] }
+
   let prod_g' = [ prod_g'_s; prod_g'_eps ]
 
   (* ---------- S ----------------*)
@@ -220,7 +231,11 @@ module General = struct
     }
 
   let prod_s_num =
-    { lhs = S; rhs = [ T NUM ]; action = [%act function [ Num n ] -> mk_num n] }
+    {
+      lhs = S;
+      rhs = [ T NUM ];
+      action = [%act function [ Num n ] -> mk_num n];
+    }
 
   let prod_s_true =
     {
@@ -247,14 +262,17 @@ module General = struct
     [ prod_s_ident; prod_s_num; prod_s_true; prod_s_false; prod_s_lparen ]
 
   (* ---------- terminals --------*)
-  let cons_silent tok : shift consumption =
+  let cons_silent tok : consumption =
     let term = token_to_terminal tok in
-    { lhs = term; action = (function t when t = tok -> None | _ -> raise Fail) }
+    {
+      lhs = term;
+      action = (function t when t = tok -> None | _ -> raise Fail);
+    }
 
-  let cons_ident : shift consumption =
+  let cons_ident : consumption =
     { lhs = IDENT; action = [%act function Token.IDENT x -> Name x] }
 
-  let cons_num : shift consumption =
+  let cons_num : consumption =
     { lhs = NUM; action = [%act function Token.NUM n -> Num n] }
 
   let cons_true = cons_silent TRUE
@@ -281,7 +299,7 @@ module General = struct
       action = [%act function [ Expr e; _ ] -> mk_one e];
     }
 
-  let productions =
+  let non_start_productions =
     List.concat
       [ prod_e; prod_t; prod_t'; prod_f; prod_f'; prod_g; prod_g'; prod_s ]
 
@@ -325,8 +343,9 @@ module LeftFactored = struct
     | T of terminal [@stringable.nested ""]
     | N of nonterminal [@stringable.nested ""]
   [@@deriving compare, to_string]
-  type 'a production = { lhs : nonterminal; rhs : sym list; action : 'a }
-  type 'a consumption = { lhs : terminal; action : 'a }
+
+  type production = { lhs : nonterminal; rhs : sym list; action : p_action }
+  type consumption = { lhs : terminal; action : c_action }
 
   (* ---------- E ----------------*)
   let prod_e_fun =
@@ -344,7 +363,11 @@ module LeftFactored = struct
     }
 
   let prod_e_t =
-    { lhs = E; rhs = [ N T ]; action = [%act function [ Expr e ] -> mk_one e] }
+    {
+      lhs = E;
+      rhs = [ N T ];
+      action = [%act function [ Expr e ] -> mk_one e];
+    }
 
   let prod_e = [ prod_e_fun; prod_e_let; prod_e_t ]
 
@@ -389,7 +412,9 @@ module LeftFactored = struct
     }
 
   (*    | eps *)
-  let prod_t'_eps = { lhs = T'; rhs = []; action = [%act function [] -> mk_nil] }
+  let prod_t'_eps =
+    { lhs = T'; rhs = []; action = [%act function [] -> mk_nil] }
+
   let prod_t' = [ prod_t'_equals; prod_t'_eps ]
 
   (* ---------- F ----------------*)
@@ -413,7 +438,9 @@ module LeftFactored = struct
     }
 
   (*    | eps *)
-  let prod_f'_eps = { lhs = F'; rhs = []; action = [%act function [] -> mk_nil] }
+  let prod_f'_eps =
+    { lhs = F'; rhs = []; action = [%act function [] -> mk_nil] }
+
   let prod_f' = [ prod_f'_plus; prod_f'_eps ]
 
   (* ---------- G ----------------*)
@@ -437,7 +464,9 @@ module LeftFactored = struct
     }
 
   (*    | eps *)
-  let prod_g'_eps = { lhs = G'; rhs = []; action = [%act function [] -> mk_nil] }
+  let prod_g'_eps =
+    { lhs = G'; rhs = []; action = [%act function [] -> mk_nil] }
+
   let prod_g' = [ prod_g'_s; prod_g'_eps ]
 
   (* ---------- S ----------------*)
@@ -452,7 +481,11 @@ module LeftFactored = struct
   (*   | n *)
 
   let prod_s_num =
-    { lhs = S; rhs = [ T NUM ]; action = [%act function [ Num n ] -> mk_num n] }
+    {
+      lhs = S;
+      rhs = [ T NUM ];
+      action = [%act function [ Num n ] -> mk_num n];
+    }
 
   (*   | true *)
   let prod_s_true =
@@ -482,14 +515,17 @@ module LeftFactored = struct
     [ prod_s_ident; prod_s_num; prod_s_true; prod_s_false; prod_s_lparen ]
 
   (* ---------- terminals --------*)
-  let cons_silent tok : shift consumption =
+  let cons_silent tok : consumption =
     let term = token_to_terminal tok in
-    { lhs = term; action = (function t when t = tok -> None | _ -> raise Fail) }
+    {
+      lhs = term;
+      action = (function t when t = tok -> None | _ -> raise Fail);
+    }
 
-  let cons_ident : shift consumption =
+  let cons_ident : consumption =
     { lhs = IDENT; action = [%act function Token.IDENT x -> Name x] }
 
-  let cons_num : shift consumption =
+  let cons_num : consumption =
     { lhs = NUM; action = [%act function Token.NUM n -> Num n] }
 
   let cons_true = cons_silent TRUE
@@ -516,10 +552,17 @@ module LeftFactored = struct
       action = [%act function [ Expr e; _ ] -> mk_one e];
     }
 
-  let productions =
+  let non_start_productions =
     List.concat
       [
-        prod_e; prod_e'; prod_t; prod_t'; prod_f; prod_f'; prod_g; prod_g';
+        prod_e;
+        prod_e';
+        prod_t;
+        prod_t';
+        prod_f;
+        prod_f';
+        prod_g;
+        prod_g';
         prod_s;
       ]
 

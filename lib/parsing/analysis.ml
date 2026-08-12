@@ -2,27 +2,26 @@ open Lang
 open Fixpoint
 open Ppx_compare_lib.Builtin
 
-module GrammarAnalysis (Grammar : BNF) = struct
-  open Grammar
-  module TSet = Set.Make (Grammar.Terminal)
-  module NTMap = Map.Make (Grammar.Nonterminal)
-  module NTSet = Set.Make (Grammar.Nonterminal)
+module GrammarAnalysis (Bnf : ELABORATED_BNF) = struct
+  open Bnf
+  open Views (Bnf)
+  module TSet = Set.Make (Terminal)
+  module NTMap = Map.Make (Nonterminal)
+  module NTSet = Set.Make (Nonterminal)
 
   module TE = struct
-    type t = Term of Grammar.terminal | Eps [@@deriving compare]
+    type t = Term of terminal | Eps [@@deriving compare]
   end
 
   open TE
   module TESet = Set.Make (TE)
 
-  let unwrap te_set =
+  let drop_eps te_set =
     TESet.fold
       (fun te acc -> match te with Eps -> acc | Term t -> TSet.add t acc)
       te_set TSet.empty
 
   let strip te_set = TESet.diff te_set (TESet.singleton Eps)
-
-  let all_productions = Grammar.start_production :: Grammar.productions
 
   module Nullable = struct
     let set =
@@ -35,7 +34,7 @@ module GrammarAnalysis (Grammar : BNF) = struct
       in
       let step nullable =
         List.filter_map
-          (fun (p : p_action production) ->
+          (fun (p : production) ->
             if is_rhs_nullable nullable p then Some p.lhs else None)
           all_productions
         |> NTSet.of_list
@@ -64,7 +63,7 @@ module GrammarAnalysis (Grammar : BNF) = struct
       in
       let step firsts =
         List.fold_left
-          (fun map (p : p_action production) ->
+          (fun map (p : production) ->
             NTMap.add p.lhs
               (TESet.union (NTMap.find p.lhs map) (first_rhs firsts p))
               map)
@@ -72,7 +71,7 @@ module GrammarAnalysis (Grammar : BNF) = struct
       in
       let initial =
         List.fold_left
-          (fun map (p : p_action production) -> NTMap.add p.lhs TESet.empty map)
+          (fun map (p : production) -> NTMap.add p.lhs TESet.empty map)
           NTMap.empty all_productions
       in
       fix ~eq:(NTMap.equal TESet.equal) step initial
@@ -97,7 +96,7 @@ module GrammarAnalysis (Grammar : BNF) = struct
           | [] -> NTMap.empty
           | T t :: syms -> follow_seq syms
           | N n :: syms ->
-              let first_after = First.syms syms |> strip |> unwrap in
+              let first_after = First.syms syms |> drop_eps in
               let contribution =
                 if Nullable.syms syms then
                   TSet.union first_after (NTMap.find lhs follows)
@@ -113,13 +112,13 @@ module GrammarAnalysis (Grammar : BNF) = struct
       in
       let follow_step follows =
         List.fold_left
-          (fun follow_map (p : p_action production) ->
+          (fun follow_map (p : production) ->
             NTMap.union union_sets follow_map (follow_rhs follows p.lhs p))
           follows all_productions
       in
       let initial =
         List.fold_left
-          (fun map (p : p_action production) -> NTMap.add p.lhs TSet.empty map)
+          (fun map (p : production) -> NTMap.add p.lhs TSet.empty map)
           NTMap.empty all_productions
       in
       fix ~eq:(NTMap.equal TSet.equal) follow_step initial

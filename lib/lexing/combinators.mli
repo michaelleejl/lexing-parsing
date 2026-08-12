@@ -10,8 +10,8 @@ module Recogniser : sig
 end
 
 module Lexer : (Vocabulary : VOCABULARY
-                          with type input = char
-                           and type spec = C.t rgx)
+                               with type input = char
+                                and type spec = C.t rgx)
   -> sig
   type token = Vocabulary.token
 

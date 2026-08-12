@@ -32,11 +32,9 @@ struct
   type token = Vocabulary.token
   type action = char list -> token option
 
-  module ActionRegistry =
-    Registry.Make
-      (struct
-        type elt = action
-      end)
+  module ActionRegistry = Registry.Make (struct
+    type elt = action
+  end)
 
   module TaggedDfa = Automata.Tdfa.Make (Char) (ActionRegistry.Tag)
   module TaggedNfa = TaggedDfa.TaggedNfa

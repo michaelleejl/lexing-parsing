@@ -213,7 +213,6 @@ module Make (Input : INPUT) = struct
       qs qs
 
   let epsilon_closure n = Fixpoint.fix ~eq:StateSet.equal (epsilon_steps n.next)
-
   let initialise n = epsilon_closure n (StateSet.singleton n.initial)
 
   let char_step n q c =

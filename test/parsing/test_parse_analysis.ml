@@ -1,10 +1,12 @@
+open Lexparse.Lang
 open Printf
 open Lexparse
 open Lexparse.Mlot
 open Lexparse.Parsing.Analysis
 
-module Report (Grammar : Lang.GRAMMAR) = struct
-  module A = GrammarAnalysis (Grammar)
+module Report (Grammar : GRAMMAR) = struct
+  module Elaborated = Elaborate (Grammar)
+  module A = GrammarAnalysis (Elaborated.Bnf)
 
   let nt = Grammar.Nonterminal.to_string
   let term = Grammar.Terminal.to_string
@@ -20,15 +22,13 @@ module Report (Grammar : Lang.GRAMMAR) = struct
   let productions =
     let rec group = function
       | [] -> []
-      | (p : Grammar.reduce Grammar.production) :: ps ->
+      | (p : Grammar.production) :: ps ->
           let same, rest =
-            List.partition
-              (fun (q : Grammar.reduce Grammar.production) -> q.lhs = p.lhs)
-              ps
+            List.partition (fun (q : Grammar.production) -> q.lhs = p.lhs) ps
           in
           (p.lhs, p :: same) :: group rest
     in
-    group (Grammar.start_production :: Grammar.productions)
+    group (Grammar.start_production :: Grammar.non_start_productions)
 
   let nullable () =
     A.NTSet.elements A.Nullable.set
@@ -44,8 +44,8 @@ module Report (Grammar : Lang.GRAMMAR) = struct
       (fun n ts -> printf "follow(%-5s) = %s\n" (nt n) (tset ts))
       A.Follow.table
 
-  let predict_set lhs (p : Grammar.reduce Grammar.production) =
-    let first = A.First.syms p.rhs |> A.unwrap in
+  let predict_set lhs (p : Grammar.production) =
+    let first = A.First.syms p.rhs |> A.drop_eps in
     if A.Nullable.syms p.rhs then A.TSet.union first (A.Follow.nonterminal lhs)
     else first
 
@@ -53,7 +53,7 @@ module Report (Grammar : Lang.GRAMMAR) = struct
     List.iter
       (fun (lhs, rhss) ->
         List.iter
-          (fun (p : Grammar.reduce Grammar.production) ->
+          (fun (p : Grammar.production) ->
             printf "%-5s ::= %-24s { %s }\n" (nt lhs) (rhs_str p.rhs)
               (tset (predict_set lhs p)))
           rhss)
