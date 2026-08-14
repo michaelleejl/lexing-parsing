@@ -1,5 +1,5 @@
 open Lexparse.Mlot
-open Lexparse.Parsing.Topdown.Combinators.LL1 (Grammars.LeftFactored)
+open Lexparse.Parsing.Topdown.Combinators.LL1 (Grammars.LL1)
 
 let%expect_test "corpus" =
   Parse_cases.run parse;

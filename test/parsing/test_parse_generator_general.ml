@@ -1,7 +1,7 @@
 open Lexparse.Mlot
 open Lexparse.Parsing.Topdown.Generators
 open Token
-open General (Grammars.General)
+open General (Grammars.LeftFactored)
 
 let%expect_test "corpus" =
   Parse_cases.run parse;

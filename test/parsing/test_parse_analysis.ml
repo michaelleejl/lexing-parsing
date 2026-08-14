@@ -85,15 +85,15 @@ module Report (Grammar : GRAMMAR) = struct
           cs
 end
 
-module Factored = Report (Grammars.LeftFactored)
-module Unfactored = Report (Grammars.General)
+module LL1 = Report (Grammars.LL1)
+module LeftFactored = Report (Grammars.LeftFactored)
 
-let%expect_test "left-factored: nullable" =
-  Factored.nullable ();
+let%expect_test "ll1: nullable" =
+  LL1.nullable ();
   [%expect {| nullable: T' F' G' |}]
 
-let%expect_test "left-factored: first" =
-  Factored.first ();
+let%expect_test "ll1: first" =
+  LL1.first ();
   [%expect
     {|
     first(S'   ) = IDENT NUM TRUE FALSE FUN LPAREN LET
@@ -108,8 +108,8 @@ let%expect_test "left-factored: first" =
     first(S    ) = IDENT NUM TRUE FALSE LPAREN
     |}]
 
-let%expect_test "left-factored: follow" =
-  Factored.follow ();
+let%expect_test "ll1: follow" =
+  LL1.follow ();
   [%expect
     {|
     follow(S'   ) =
@@ -124,8 +124,8 @@ let%expect_test "left-factored: follow" =
     follow(S    ) = IDENT NUM TRUE FALSE LPAREN RPAREN PLUS EQUALS IN EOF
     |}]
 
-let%expect_test "left-factored: predict sets" =
-  Factored.predict ();
+let%expect_test "ll1: predict sets" =
+  LL1.predict ();
   [%expect
     {|
     S'    ::= E EOF                    { IDENT NUM TRUE FALSE FUN LPAREN LET }
@@ -150,16 +150,16 @@ let%expect_test "left-factored: predict sets" =
     S     ::= LPAREN E RPAREN          { LPAREN }
     |}]
 
-let%expect_test "left-factored: is LL(1)" =
-  Factored.ll1 ();
+let%expect_test "ll1: is LL(1)" =
+  LL1.ll1 ();
   [%expect {| LL(1): yes |}]
 
-let%expect_test "general: nullable" =
-  Unfactored.nullable ();
+let%expect_test "left-factored: nullable" =
+  LeftFactored.nullable ();
   [%expect {| nullable: T' F' G' |}]
 
-let%expect_test "general: first" =
-  Unfactored.first ();
+let%expect_test "left-factored: first" =
+  LeftFactored.first ();
   [%expect
     {|
     first(S'   ) = IDENT NUM TRUE FALSE FUN LPAREN LET
@@ -173,8 +173,8 @@ let%expect_test "general: first" =
     first(S    ) = IDENT NUM TRUE FALSE LPAREN
     |}]
 
-let%expect_test "general: follow" =
-  Unfactored.follow ();
+let%expect_test "left-factored: follow" =
+  LeftFactored.follow ();
   [%expect
     {|
     follow(S'   ) =
@@ -188,8 +188,8 @@ let%expect_test "general: follow" =
     follow(S    ) = IDENT NUM TRUE FALSE LPAREN RPAREN PLUS EQUALS IN EOF
     |}]
 
-let%expect_test "general: predict sets" =
-  Unfactored.predict ();
+let%expect_test "left-factored: predict sets" =
+  LeftFactored.predict ();
   [%expect
     {|
     S'    ::= E EOF                    { IDENT NUM TRUE FALSE FUN LPAREN LET }
@@ -213,32 +213,32 @@ let%expect_test "general: predict sets" =
     S     ::= LPAREN E RPAREN          { LPAREN }
     |}]
 
-let%expect_test "general: is LL(1)" =
-  Unfactored.ll1 ();
+let%expect_test "left-factored: is LL(1)" =
+  LeftFactored.ll1 ();
   [%expect {|
     LL(1): no
       E conflicts on LET
     |}]
 
-module F = Grammars.LeftFactored
+module Gram = Grammars.LL1
 
-let show_first = Factored.show_first
-let show_nullable = Factored.show_nullable
+let show_first = LL1.show_first
+let show_nullable = LL1.show_nullable
 
 let%expect_test "first of eps" =
   show_first [];
   [%expect {| eps |}]
 
 let%expect_test "first stops at the first non-nullable symbol" =
-  show_first [ Factored.t PLUS; Factored.n F.Nonterminal.E ];
+  show_first [ LL1.t PLUS; LL1.n Gram.Nonterminal.E ];
   [%expect {| PLUS |}]
 
 let%expect_test "first sees through a nullable prefix" =
-  show_first [ Factored.n F.Nonterminal.G'; Factored.t EQUALS ];
+  show_first [ LL1.n Gram.Nonterminal.G'; LL1.t EQUALS ];
   [%expect {| IDENT NUM TRUE FALSE LPAREN EQUALS |}]
 
 let%expect_test "first of an all-nullable sequence keeps eps" =
-  show_first [ Factored.n F.Nonterminal.G'; Factored.n F.Nonterminal.T' ];
+  show_first [ LL1.n Gram.Nonterminal.G'; LL1.n Gram.Nonterminal.T' ];
   [%expect {| IDENT NUM TRUE FALSE LPAREN EQUALS eps |}]
 
 let%expect_test "nullable: empty sequence" =
@@ -246,9 +246,9 @@ let%expect_test "nullable: empty sequence" =
   [%expect {| true |}]
 
 let%expect_test "nullable: all-nullable sequence" =
-  show_nullable [ Factored.n F.Nonterminal.G'; Factored.n F.Nonterminal.T' ];
+  show_nullable [ LL1.n Gram.Nonterminal.G'; LL1.n Gram.Nonterminal.T' ];
   [%expect {| true |}]
 
 let%expect_test "nullable: sequence with a terminal" =
-  show_nullable [ Factored.n F.Nonterminal.G'; Factored.t PLUS ];
+  show_nullable [ LL1.n Gram.Nonterminal.G'; LL1.t PLUS ];
   [%expect {| false |}]

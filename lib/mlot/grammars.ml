@@ -83,7 +83,7 @@ module Common = struct
   let mk_app e es = mk_op ap e es
 end
 
-module General = struct
+module LeftFactored = struct
   include Common
 
   module Nonterminal = struct
@@ -311,7 +311,7 @@ module General = struct
     ]
 end
 
-module LeftFactored = struct
+module LL1 = struct
   include Common
 
   module Nonterminal = struct
