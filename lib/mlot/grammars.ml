@@ -3,7 +3,7 @@ open Ppx_compare_lib.Builtin
 module Common = struct
   exception Fail
 
-  type token = Token.t
+  type token = Token.t [@@deriving compare]
   type ast = Ast.node [@@deriving compare]
 
   module Terminal = struct
@@ -87,8 +87,7 @@ module General = struct
   include Common
 
   module Nonterminal = struct
-    type t = Start | E | T' | T | F' | F | G' | G | S
-    [@@deriving compare, to_string]
+    type t = E | T' | T | F' | F | G' | G | S [@@deriving compare, to_string]
   end
 
   type nonterminal = Nonterminal.t [@@deriving compare, to_string]
@@ -106,7 +105,6 @@ module General = struct
   [@@deriving compare, to_string]
 
   type production = { lhs : nonterminal; rhs : sym list; builder : builder }
-  type productions = { start : production; rest : production list }
   type consumption = { lhs : terminal; reader : reader }
 
   (* ---------- E ----------------*)
@@ -288,21 +286,11 @@ module General = struct
   let cons_eof = cons_silent EOF
 
   (* ---------- start ------------*)
-  (* Start ::= E EOF *)
-  let start = Nonterminal.Start
+  let start = Nonterminal.E
 
   let productions =
-    {
-      start =
-        {
-          lhs = start;
-          rhs = [ N E; T EOF ];
-          builder = [%act function [ Expr e; _ ] -> mk_one e];
-        };
-      rest =
-        List.concat
-          [ prod_e; prod_t; prod_t'; prod_f; prod_f'; prod_g; prod_g'; prod_s ];
-    }
+    List.concat
+      [ prod_e; prod_t; prod_t'; prod_f; prod_f'; prod_g; prod_g'; prod_s ]
 
   let consumptions =
     [
@@ -327,7 +315,7 @@ module LeftFactored = struct
   include Common
 
   module Nonterminal = struct
-    type t = Start | E | E' | T' | T | F' | F | G' | G | S
+    type t = E | E' | T' | T | F' | F | G' | G | S
     [@@deriving compare, to_string]
   end
 
@@ -346,7 +334,6 @@ module LeftFactored = struct
   [@@deriving compare, to_string]
 
   type production = { lhs : nonterminal; rhs : sym list; builder : builder }
-  type productions = { start : production; rest : production list }
   type consumption = { lhs : terminal; reader : reader }
 
   (* ---------- E ----------------*)
@@ -544,31 +531,21 @@ module LeftFactored = struct
   let cons_eof = cons_silent EOF
 
   (* ---------- start ------------*)
-  (* Start ::= E EOF *)
-  let start = Nonterminal.Start
+  let start = Nonterminal.E
 
   let productions =
-    {
-      start =
-        {
-          lhs = start;
-          rhs = [ N E; T EOF ];
-          builder = [%act function [ Expr e; _ ] -> mk_one e];
-        };
-      rest =
-        List.concat
-          [
-            prod_e;
-            prod_e';
-            prod_t;
-            prod_t';
-            prod_f;
-            prod_f';
-            prod_g;
-            prod_g';
-            prod_s;
-          ];
-    }
+    List.concat
+      [
+        prod_e;
+        prod_e';
+        prod_t;
+        prod_t';
+        prod_f;
+        prod_f';
+        prod_g;
+        prod_g';
+        prod_s;
+      ]
 
   let consumptions =
     [

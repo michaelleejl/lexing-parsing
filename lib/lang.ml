@@ -2,7 +2,7 @@ open Ppx_compare_lib.Builtin
 
 module type VOCABULARY = sig
   type input
-  type token
+  type token [@@deriving compare]
   type spec
   type action = input list -> token option
 
@@ -34,17 +34,17 @@ module type BNF = sig
   type builder
   type reader
   type production = { lhs : nonterminal; rhs : sym list; builder : builder }
-  type productions = { start : production; rest : production list }
   type consumption = { lhs : terminal; reader : reader }
 
-  val productions : productions
+  val start : nonterminal
+  val productions : production list
   val consumptions : consumption list
 end
 
 module type GRAMMAR = sig
   exception Fail
 
-  type token
+  type token [@@deriving compare]
   type ast
   type data [@@deriving compare]
 
@@ -89,7 +89,7 @@ end
 module type ELABORATED_GRAMMAR = sig
   exception Fail
 
-  type token
+  type token [@@deriving compare]
   type ast
   type data [@@deriving compare]
   type builder
@@ -110,22 +110,30 @@ exception Duplicate_production
 exception Duplicate_consumption
 exception Unconsumable_terminal of string
 
+module Augment (Nonterminal : sig
+  type t [@@deriving compare, to_string]
+end) =
+struct
+  type t =
+    | Start [@stringable.rename "S'"]
+    | Source of Nonterminal.t [@stringable.nested ""]
+  [@@deriving compare, to_string]
+end
+
 module Elaborate (Grammar : GRAMMAR) :
   ELABORATED_GRAMMAR
     with type token = Grammar.token
      and type ast = Grammar.ast
      and type data = Grammar.data
-     and type builder = Grammar.builder
      and type reader = Grammar.reader
      and module Bnf.Terminal = Grammar.Terminal
-     and module Bnf.Nonterminal = Grammar.Nonterminal
-     and module Bnf.Sym = Grammar.Sym = struct
+     and module Bnf.Nonterminal = Augment (Grammar.Nonterminal) =
+struct
   exception Fail = Grammar.Fail
 
-  type token = Grammar.token
+  type token = Grammar.token [@@deriving compare]
   type ast = Grammar.ast
   type data = Grammar.data [@@deriving compare]
-  type builder = Grammar.builder
   type reader = Grammar.reader
 
   module Bnf = struct
@@ -133,11 +141,16 @@ module Elaborate (Grammar : GRAMMAR) :
 
     type terminal = Terminal.t [@@deriving compare, to_string]
 
-    module Nonterminal = Grammar.Nonterminal
+    module Nonterminal = Augment (Grammar.Nonterminal)
 
     type nonterminal = Nonterminal.t [@@deriving compare, to_string]
 
-    module Sym = Grammar.Sym
+    module Sym = struct
+      type t =
+        | T of terminal [@stringable.nested ""]
+        | N of nonterminal [@stringable.nested ""]
+      [@@deriving compare, to_string]
+    end
 
     type sym = Sym.t =
       | T of terminal [@stringable.nested ""]
@@ -147,15 +160,23 @@ module Elaborate (Grammar : GRAMMAR) :
     type production = { lhs : nonterminal; rhs : sym list } [@@deriving compare]
     type productions = { start : production; rest : production list }
 
-    let pure (p : Grammar.production) = { lhs = p.lhs; rhs = p.rhs }
+    let eof_terminal = Grammar.token_to_terminal Grammar.eof
 
-    let productions =
+    let lift : Grammar.sym -> sym = function
+      | Grammar.T t -> T t
+      | Grammar.N n -> N (Nonterminal.Source n)
+
+    let pure (p : Grammar.production) =
+      { lhs = Nonterminal.Source p.lhs; rhs = List.map lift p.rhs }
+
+    let start =
       {
-        start = pure Grammar.productions.start;
-        rest = List.map pure Grammar.productions.rest;
+        lhs = Nonterminal.Start;
+        rhs = [ N (Nonterminal.Source Grammar.start); T eof_terminal ];
       }
 
-    let eof_terminal = Grammar.token_to_terminal Grammar.eof
+    let productions =
+      { start ; rest = List.map pure Grammar.productions }
   end
 
   module PMap = Map.Make (struct
@@ -166,15 +187,23 @@ module Elaborate (Grammar : GRAMMAR) :
 
   module TMap = Map.Make (Grammar.Terminal)
 
+  type builder = Source of Grammar.builder | Start
+
+  let build b ds =
+    match b with
+    | Source b -> Grammar.build b ds
+    | Start -> ( match ds with [ d; _ ] -> d | _ -> assert false)
+
   let builders =
     List.fold_left
       (fun map (p : Grammar.production) ->
         PMap.update (Bnf.pure p)
           (function
-            | None -> Some p.builder | Some _ -> raise Duplicate_production)
+            | None -> Some (Source p.builder)
+            | Some _ -> raise Duplicate_production)
           map)
-      PMap.empty
-      (Grammar.productions.start :: Grammar.productions.rest)
+      PMap.empty Grammar.productions
+    |> PMap.add Bnf.start Start
 
   let readers =
     List.fold_left
@@ -192,7 +221,6 @@ module Elaborate (Grammar : GRAMMAR) :
     | Some r -> r
     | None -> raise (Unconsumable_terminal (Bnf.string_of_terminal t))
 
-  let build = Grammar.build
   let read = Grammar.read
   let finish = Grammar.finish
   let token_to_terminal = Grammar.token_to_terminal

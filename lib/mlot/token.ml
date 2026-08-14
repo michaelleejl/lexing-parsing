@@ -1,3 +1,4 @@
+open Ppx_compare_lib.Builtin
 open Format
 
 type t =
@@ -14,7 +15,7 @@ type t =
   | EQUALS
   | IN
   | REC
-  | EOF
+  | EOF [@@deriving compare]
 
 let to_str t =
   match t with

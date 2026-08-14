@@ -2,7 +2,7 @@ open Regex
 open Token
 
 type input = char
-type token = Token.t
+type token = Token.t [@@deriving compare]
 type spec = Regex.t
 type action = input list -> token option
 
