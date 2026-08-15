@@ -21,9 +21,12 @@ module type S = sig
     alphabet : input_set;
   }
 
+  val init :
+    state_set -> state -> state_set -> (state -> transition) -> input_set -> t
+
   val empty : t
   val epsilon : t
-  val one_of : input list -> t
+  val one_of : ?alphabet:input_set -> input list -> t
   val alt : t -> t -> t
   val seq : t -> t -> t
   val kleene : t -> t

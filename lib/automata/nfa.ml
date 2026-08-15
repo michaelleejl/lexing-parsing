@@ -21,9 +21,12 @@ module type S = sig
     alphabet : input_set;
   }
 
+  val init :
+    state_set -> state -> state_set -> (state -> transition) -> input_set -> t
+
   val empty : t
   val epsilon : t
-  val one_of : input list -> t
+  val one_of : ?alphabet:input_set -> input list -> t
   val alt : t -> t -> t
   val seq : t -> t -> t
   val kleene : t -> t
@@ -63,6 +66,9 @@ module Make (Input : INPUT) = struct
     next : state -> transition;
     alphabet : input_set;
   }
+
+  let init states initial finals next alphabet =
+    { states; initial; finals; next; alphabet }
 
   let rn_shift ?(m = 1) n =
     {
@@ -124,7 +130,7 @@ module Make (Input : INPUT) = struct
       alphabet = InputSet.empty;
     }
 
-  let one_of cs =
+  let one_of ?alphabet cs =
     {
       states = StateSet.of_list [ 0; 1 ];
       initial = 0;
@@ -135,7 +141,8 @@ module Make (Input : INPUT) = struct
             InputOptMap.of_list
               (List.map (fun x -> (Some x, StateSet.singleton 1)) cs)
           else InputOptMap.empty);
-      alphabet = InputSet.of_list cs;
+      alphabet =
+        (match alphabet with Some a -> a | None -> InputSet.of_list cs);
     }
 
   let alt n0 n1 =
