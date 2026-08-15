@@ -26,6 +26,9 @@ module type S = sig
     tagger : tag_lookup;
   }
 
+  type determinisation = { dfa : t; subsets : state -> TaggedNfa.state_set }
+
+  val subset_construction : TaggedNfa.t -> determinisation
   val determinise : TaggedNfa.t -> t
   val initialise : t -> state
   val is_rejecting : t -> state -> bool
@@ -62,7 +65,7 @@ module Make (Input : INPUT) (Tag : TAG) = struct
     tagger : tag_lookup;
   }
 
-  let find_next_state next q c = InputMap.find c (next q)
+  let failure = 0
 
   let add_transition (source, c, target) transitions =
     match StateMap.find source transitions with
@@ -72,76 +75,92 @@ module Make (Input : INPUT) (Tag : TAG) = struct
 
   let add_tag state tag tagger = StateMap.add state tag tagger
 
-  let determinise n =
+  type determinisation = { dfa : t; subsets : state -> TaggedNfa.state_set }
+
+  let subset_construction n =
     let nfa_initial = TaggedNfa.initialise n in
     let module M = Map.Make (TaggedNfa.StateSet) in
     let gen_state =
-      let next_state = ref 0 in
+      let next_state = ref 1 in
+      (*0 a rejecting state*)
       fun () ->
         let s = !next_state in
         next_state := s + 1;
         s
     in
     let rec build nfa_state
-        (mapping, states, transitions, finals, rejecting, tagger) =
+        (mapping, subsets, states, transitions, finals, tagger) =
       match M.find nfa_state mapping with
       | dfa_state ->
-          (dfa_state, mapping, states, transitions, finals, rejecting, tagger)
+          (dfa_state, mapping, subsets, states, transitions, finals, tagger)
       | exception Not_found ->
           let dfa_state = gen_state () in
           let mapping = M.add nfa_state dfa_state mapping in
+          let subsets = StateMap.add dfa_state nfa_state subsets in
           let finals =
             if TaggedNfa.is_accepting n nfa_state then
               StateSet.add dfa_state finals
             else finals
-          in
-          let rejecting =
-            if TaggedNfa.is_rejecting n nfa_state then Some dfa_state
-            else rejecting
           in
           let tagger =
             add_tag dfa_state (TaggedNfa.emit_tag n nfa_state) tagger
           in
           let states = StateSet.add dfa_state states in
           let find_next_state = TaggedNfa.step n nfa_state in
-          let builder c (m, s, t, f, r, tg) =
+          let builder c (m, su, s, t, f, tg) =
             let next_state = find_next_state c in
-            let dfa_next_state, m', s', t', f', r', tg' =
-              build next_state (m, s, t, f, r, tg)
+            let dfa_next_state, m', su', s', t', f', tg' =
+              build next_state (m, su, s, t, f, tg)
             in
             let t'' = add_transition (dfa_state, c, dfa_next_state) t' in
             let s'' = StateSet.add dfa_next_state s' in
-            (m', s'', t'', f', r', tg')
+            (m', su', s'', t'', f', tg')
           in
-          let mapping', states', transitions', finals', rejecting', tagger' =
+          let mapping', subsets', states', transitions', finals', tagger' =
             TaggedNfa.InputSet.fold builder n.alphabet
-              (mapping, states, transitions, finals, rejecting, tagger)
+              (mapping, subsets, states, transitions, finals, tagger)
           in
           ( dfa_state,
             mapping',
+            subsets',
             states',
             transitions',
             finals',
-            rejecting',
             tagger' )
     in
-    let initial, _, states, transitions, finals, rejecting, tagger =
+    let initial_mapping = M.singleton TaggedNfa.StateSet.empty failure in
+    let initial_subsets = StateMap.singleton failure TaggedNfa.StateSet.empty in
+    let initial_states = StateSet.of_list [ failure ] in
+    let initial_transitions = StateMap.add failure InputMap.empty StateMap.empty in
+    let initial_tagger = StateMap.singleton failure None in
+    let initial, _, subsets, states, transitions, finals, tagger =
       build nfa_initial
-        ( M.empty,
+        ( initial_mapping,
+          initial_subsets,
+          initial_states,
+          initial_transitions,
           StateSet.empty,
-          StateMap.empty,
-          StateSet.empty,
-          None,
-          StateMap.empty )
+          initial_tagger )
     in
     let next s =
       try StateMap.find s transitions with Not_found -> InputMap.empty
     in
     let alphabet = n.alphabet in
-    match rejecting with
-    | None -> raise (Failure "Should have at least one rejecting state")
-    | Some rejecting ->
-        { states; initial; finals; next; alphabet; rejecting; tagger }
+    {
+      dfa =
+        {
+          states;
+          initial;
+          finals;
+          rejecting = failure;
+          next;
+          alphabet;
+          tagger;
+        };
+      subsets = (fun state -> StateMap.find state subsets);
+    }
+
+  let determinise n = (subset_construction n).dfa
 
   let initialise t_dfa = t_dfa.initial
   let is_rejecting t_dfa q = q = t_dfa.rejecting

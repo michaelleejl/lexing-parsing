@@ -18,11 +18,22 @@ module type S = sig
     states : state_set;
     initial : state;
     finals : state_set;
+    rejecting : state;
     next : state -> transition;
     alphabet : input_set;
   }
 
+  type determinisation = {
+    dfa : t;
+    subsets : state -> Nfa.state_set;
+  }
+
+  val subset_construction: Nfa.t -> determinisation
   val determinise : Nfa.t -> t
+  val initialise : t -> state
+  val is_rejecting : t -> state -> bool
+  val is_accepting : t -> state -> bool
+  val step : t -> state -> input -> state
   val accept : t -> input list -> bool
 end
 

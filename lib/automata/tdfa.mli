@@ -26,6 +26,12 @@ module type S = sig
     tagger : tag_lookup;
   }
 
+  type determinisation = {
+    dfa : t;
+    subsets : state -> TaggedNfa.state_set;
+  }
+
+  val subset_construction: TaggedNfa.t -> determinisation 
   val determinise : TaggedNfa.t -> t
   val initialise : t -> state
   val is_rejecting : t -> state -> bool
