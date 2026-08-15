@@ -3,12 +3,12 @@ module type ELT = sig
 end
 
 module type S = sig
-  module Tag : Automata.Params.TAG
+  module Id : Id.ID
 
   type elt
 
-  val register : elt -> Tag.t
-  val get : Tag.t -> elt
+  val register : elt -> Id.t
+  val get : Id.t -> elt
 end
 
 module Make (Elt : ELT) : S with type elt = Elt.elt
