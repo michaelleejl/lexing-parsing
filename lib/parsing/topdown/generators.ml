@@ -73,7 +73,7 @@ module General (Grammar : GRAMMAR) = struct
   let read_step r = fun token s -> ParseStack.fill s (read r token)
   let register_reader r = StepRegistry.register (read_step r)
 
-  module TaggedPda = Automata.Tpda.Make (Terminal) (Sym) (StepRegistry.Tag)
+  module TaggedPda = Automata.Tpda.Make (Terminal) (Sym) (StepRegistry.Id)
 
   module ParseHypothesis = struct
     type t = TaggedPda.config * ParseStack.t [@@deriving compare]
@@ -136,7 +136,7 @@ module General (Grammar : GRAMMAR) = struct
   module Transition = struct
     type t =
       (terminal option * Sym.t)
-      * (TaggedPda.state * Sym.t list * StepRegistry.Tag.t)
+      * (TaggedPda.state * Sym.t list * StepRegistry.Id.t)
     [@@deriving compare]
   end
 
@@ -281,7 +281,7 @@ module LL1 (Grammar : GRAMMAR) = struct
 
   module ParseTable = struct
     type key = Sym.t * Terminal.t
-    type value = StepRegistry.Tag.t
+    type value = StepRegistry.Id.t
     type t = (key, value) Hashtbl.t
 
     let tbl : t = Hashtbl.create 128
