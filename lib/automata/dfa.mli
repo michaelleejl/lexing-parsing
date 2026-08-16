@@ -23,12 +23,9 @@ module type S = sig
     alphabet : input_set;
   }
 
-  type determinisation = {
-    dfa : t;
-    subsets : state -> Nfa.state_set;
-  }
+  type determinisation = { dfa : t; subsets : state -> Nfa.state_set }
 
-  val subset_construction: Nfa.t -> determinisation
+  val subset_construction : Nfa.t -> determinisation
   val determinise : Nfa.t -> t
   val initialise : t -> state
   val is_rejecting : t -> state -> bool

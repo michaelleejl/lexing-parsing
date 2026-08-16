@@ -131,7 +131,9 @@ module Make (Input : INPUT) (Tag : TAG) = struct
     let initial_mapping = M.singleton TaggedNfa.StateSet.empty failure in
     let initial_subsets = StateMap.singleton failure TaggedNfa.StateSet.empty in
     let initial_states = StateSet.of_list [ failure ] in
-    let initial_transitions = StateMap.add failure InputMap.empty StateMap.empty in
+    let initial_transitions =
+      StateMap.add failure InputMap.empty StateMap.empty
+    in
     let initial_tagger = StateMap.singleton failure None in
     let initial, _, subsets, states, transitions, finals, tagger =
       build nfa_initial
@@ -148,20 +150,11 @@ module Make (Input : INPUT) (Tag : TAG) = struct
     let alphabet = n.alphabet in
     {
       dfa =
-        {
-          states;
-          initial;
-          finals;
-          rejecting = failure;
-          next;
-          alphabet;
-          tagger;
-        };
+        { states; initial; finals; rejecting = failure; next; alphabet; tagger };
       subsets = (fun state -> StateMap.find state subsets);
     }
 
   let determinise n = (subset_construction n).dfa
-
   let initialise t_dfa = t_dfa.initial
   let is_rejecting t_dfa q = q = t_dfa.rejecting
   let is_accepting t_dfa q = StateSet.mem q t_dfa.finals

@@ -42,9 +42,9 @@ module Make (Input : INPUT) = struct
   module StateMap = Map.Make (Int)
   module InputSet = Nfa.InputSet
   module InputMap = Map.Make (Input)
+  module State = Int
 
-  module State = Int 
-  type state = State.t 
+  type state = State.t
   type state_set = StateSet.t
   type input_set = InputSet.t
   type transition = state InputMap.t
@@ -66,15 +66,12 @@ module Make (Input : INPUT) = struct
         StateMap.add source (InputMap.singleton c target) transitions
     | cm -> StateMap.add source (InputMap.add c target cm) transitions
 
-  type determinisation = {
-    dfa : t;
-    subsets : state -> Nfa.state_set;
-  }
+  type determinisation = { dfa : t; subsets : state -> Nfa.state_set }
 
-  let subset_construction n = 
-     let nfa_initial = Nfa.initialise n in
+  let subset_construction n =
+    let nfa_initial = Nfa.initialise n in
     let module M = Map.Make (Nfa.StateSet) in
-    let module S = StateMap in 
+    let module S = StateMap in
     let gen_state =
       let next_state = ref 1 in
       (*0 a rejecting state*)
@@ -89,7 +86,7 @@ module Make (Input : INPUT) = struct
       | exception Not_found ->
           let dfa_state = gen_state () in
           let mapping = M.add nfa_state dfa_state mapping in
-          let subsets = S.add dfa_state nfa_state subsets in 
+          let subsets = S.add dfa_state nfa_state subsets in
           let finals =
             if Nfa.is_accepting n nfa_state then StateSet.add dfa_state finals
             else finals
@@ -111,12 +108,17 @@ module Make (Input : INPUT) = struct
           in
           (dfa_state, mapping', subsets', states', transitions', finals')
     in
-    let initial_mapping = M.singleton StateSet.empty failure in 
+    let initial_mapping = M.singleton StateSet.empty failure in
     let inital_transitions = StateMap.add 0 InputMap.empty StateMap.empty in
     let initial_states = StateSet.of_list [ 0 ] in
-    let initial_subsets = S.singleton 0 Nfa.StateSet.empty in 
+    let initial_subsets = S.singleton 0 Nfa.StateSet.empty in
     let initial, _, subsets, states, transitions, finals =
-      build nfa_initial (initial_mapping, initial_subsets, initial_states, inital_transitions, StateSet.empty)
+      build nfa_initial
+        ( initial_mapping,
+          initial_subsets,
+          initial_states,
+          inital_transitions,
+          StateSet.empty )
     in
     let next s =
       try StateMap.find s transitions with Not_found -> InputMap.empty
@@ -124,10 +126,10 @@ module Make (Input : INPUT) = struct
     let alphabet = n.alphabet in
     {
       dfa = { states; initial; finals; rejecting = failure; next; alphabet };
-      subsets = fun state -> S.find state subsets
+      subsets = (fun state -> S.find state subsets);
     }
-  let determinise n = (subset_construction n).dfa
 
+  let determinise n = (subset_construction n).dfa
   let initialise dfa = dfa.initial
   let is_rejecting dfa q = q = dfa.rejecting
   let is_accepting dfa q = StateSet.mem q dfa.finals
@@ -135,5 +137,6 @@ module Make (Input : INPUT) = struct
   let step dfa q c =
     try InputMap.find c (dfa.next q) with Not_found -> dfa.rejecting
 
-  let accept dfa xs = List.fold_left (step dfa) dfa.initial xs |> is_accepting dfa
+  let accept dfa xs =
+    List.fold_left (step dfa) dfa.initial xs |> is_accepting dfa
 end

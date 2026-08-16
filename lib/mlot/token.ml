@@ -15,7 +15,8 @@ type t =
   | EQUALS
   | IN
   | REC
-  | EOF [@@deriving compare]
+  | EOF
+[@@deriving compare]
 
 let to_str t =
   match t with
