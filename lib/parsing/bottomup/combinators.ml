@@ -17,23 +17,18 @@ module General (Grammar : GRAMMAR) = struct
   type token = Elaborated.token [@@deriving compare]
   type ast = Elaborated.ast [@@deriving compare]
 
-  module Items = LR0.Make (Bnf)
-  open Items
-  module ItemSet = Set.Make (Items)
+  module Item = LR0.Make (Bnf)
+  open Item
+  module ItemSet = Set.Make (Item)
 
   exception ParseError of string
 
   let closure items =
-    let cl item =
-      match next item with
-      | Some (N n) ->
-          let productions = productions_of_nonterminal n in
-          ItemSet.of_list (List.map (fun p -> zero p) productions)
-      | _ -> ItemSet.empty
-    in
     Fixpoint.fix ~eq:ItemSet.equal
       (fun its ->
-        ItemSet.fold (fun item acc -> ItemSet.union (cl item) acc) its its)
+        ItemSet.fold
+          (fun item acc -> ItemSet.union (ItemSet.of_list @@ eps item) acc)
+          its its)
       items
 
   exception Accepted of ast
@@ -153,7 +148,7 @@ module General (Grammar : GRAMMAR) = struct
       match
         parser
           {
-            items = ItemSet.singleton (zero productions.start);
+            items = ItemSet.singleton items.start;
             datum = Data.start;
             tokens = ts @ [ eof ];
           }

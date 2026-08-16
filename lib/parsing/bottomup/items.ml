@@ -13,7 +13,7 @@ module type ITEM = sig
   val items : items
   val next : item -> sym option
   val advance : item -> sym -> item option
-  val zero : production -> item
+  val eps : item -> item list
   val production_of : item -> production
 end
 
@@ -53,6 +53,12 @@ module LR0 = struct
       with Failure _ -> None
 
     let zero production = { production; dot = 0 }
+
+    let eps item =
+      match next item with
+      | Some (N n) -> List.map zero (productions_of_nonterminal n)
+      | _ -> []
+
     let start_item = zero productions.start
 
     let accept_item =
