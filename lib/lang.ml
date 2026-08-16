@@ -103,7 +103,7 @@ module type ELABORATED_GRAMMAR = sig
     val start : t
   end
 
-  type data [@@deriving compare]
+  type data = Data.t [@@deriving compare]
   type builder
   type reader
 
@@ -150,8 +150,8 @@ module Elaborate (Grammar : GRAMMAR) :
      and type ast = Grammar.ast
      and type reader = Grammar.reader
      and module Bnf.Terminal = Grammar.Terminal
-     and module Bnf.Nonterminal = Augment_Nonterminals(Grammar.Nonterminal)
-     and module Data = Augment_Data(Grammar.Data) = struct
+     and module Bnf.Nonterminal = Augment_Nonterminals(Grammar.Nonterminal) =
+struct
   exception Fail = Grammar.Fail
 
   type token = Grammar.token [@@deriving compare]
