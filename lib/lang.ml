@@ -45,8 +45,13 @@ module type GRAMMAR = sig
   exception Fail
 
   type token [@@deriving compare]
-  type ast
-  type data [@@deriving compare]
+  type ast [@@deriving compare]
+
+  module Data : sig
+    type t [@@deriving compare]
+  end
+
+  type data = Data.t [@@deriving compare]
 
   include BNF
 
@@ -90,7 +95,14 @@ module type ELABORATED_GRAMMAR = sig
   exception Fail
 
   type token [@@deriving compare]
-  type ast
+  type ast [@@deriving compare]
+
+  module Data : sig
+    type t [@@deriving compare]
+
+    val start : t
+  end
+
   type data [@@deriving compare]
   type builder
   type reader
@@ -110,7 +122,7 @@ exception Duplicate_production
 exception Duplicate_consumption
 exception Unconsumable_terminal of string
 
-module Augment (Nonterminal : sig
+module Augment_Nonterminals (Nonterminal : sig
   type t [@@deriving compare, to_string]
 end) =
 struct
@@ -120,20 +132,35 @@ struct
   [@@deriving compare, to_string]
 end
 
+module Augment_Data (Data : sig
+  type t [@@deriving compare]
+end) =
+struct
+  type t = StartSym | SourceDatum of Data.t [@@deriving compare]
+
+  exception UnwrapError
+
+  let unwrap = function StartSym -> raise UnwrapError | SourceDatum d -> d
+  let start = StartSym
+end
+
 module Elaborate (Grammar : GRAMMAR) :
   ELABORATED_GRAMMAR
     with type token = Grammar.token
      and type ast = Grammar.ast
-     and type data = Grammar.data
      and type reader = Grammar.reader
      and module Bnf.Terminal = Grammar.Terminal
-     and module Bnf.Nonterminal = Augment (Grammar.Nonterminal) =
-struct
+     and module Bnf.Nonterminal = Augment_Nonterminals(Grammar.Nonterminal)
+     and module Data = Augment_Data(Grammar.Data) = struct
   exception Fail = Grammar.Fail
 
   type token = Grammar.token [@@deriving compare]
-  type ast = Grammar.ast
-  type data = Grammar.data [@@deriving compare]
+  type ast = Grammar.ast [@@deriving compare]
+
+  module Data = Augment_Data (Grammar.Data)
+  open Data
+
+  type data = Data.t [@@deriving compare]
   type reader = Grammar.reader
 
   module Bnf = struct
@@ -141,7 +168,7 @@ struct
 
     type terminal = Terminal.t [@@deriving compare, to_string]
 
-    module Nonterminal = Augment (Grammar.Nonterminal)
+    module Nonterminal = Augment_Nonterminals (Grammar.Nonterminal)
 
     type nonterminal = Nonterminal.t [@@deriving compare, to_string]
 
@@ -175,8 +202,7 @@ struct
         rhs = [ N (Nonterminal.Source Grammar.start); T eof_terminal ];
       }
 
-    let productions =
-      { start ; rest = List.map pure Grammar.productions }
+    let productions = { start; rest = List.map pure Grammar.productions }
   end
 
   module PMap = Map.Make (struct
@@ -191,7 +217,7 @@ struct
 
   let build b ds =
     match b with
-    | Source b -> Grammar.build b ds
+    | Source b -> SourceDatum (Grammar.build b (List.map Data.unwrap ds))
     | Start -> ( match ds with [ d; _ ] -> d | _ -> assert false)
 
   let builders =
@@ -221,8 +247,8 @@ struct
     | Some r -> r
     | None -> raise (Unconsumable_terminal (Bnf.string_of_terminal t))
 
-  let read = Grammar.read
-  let finish = Grammar.finish
+  let read reader token = SourceDatum (Grammar.read reader token)
+  let finish d = Grammar.finish (unwrap d)
   let token_to_terminal = Grammar.token_to_terminal
   let eof = Grammar.eof
 end
@@ -256,4 +282,7 @@ module Views (Bnf : ELABORATED_BNF) = struct
       (TSet.singleton eof_terminal)
       all_productions
     |> TSet.elements
+
+  let symbols =
+    List.map (fun x -> N x) nonterminals @ List.map (fun x -> T x) terminals
 end
