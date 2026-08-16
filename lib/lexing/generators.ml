@@ -1,14 +1,17 @@
 open Regex
+open Automata.Nfa
 
-module RegexToNfa (N : Automata.Nfa.S with type input = char) = struct
+module RegexToNfa (N : S with type input = char) = struct
+  open N
+
   let rec compile r =
     match r with
-    | Empty -> N.empty
-    | Epsilon -> N.epsilon
-    | Char cs -> N.one_of (C.to_list cs)
-    | Alt (r1, r2) -> N.alt (compile r1) (compile r2)
-    | Seq (r1, r2) -> N.seq (compile r1) (compile r2)
-    | Kleene r -> N.kleene (compile r)
+    | Empty -> empty
+    | Epsilon -> epsilon
+    | Char cs -> one_of (C.to_list cs)
+    | Alt (r1, r2) -> alt (compile r1) (compile r2)
+    | Seq (r1, r2) -> seq (compile r1) (compile r2)
+    | Kleene r -> kleene (compile r)
 end
 
 module Recogniser = struct
@@ -36,11 +39,11 @@ struct
     type elt = action
   end)
 
-  module TaggedDfa = Automata.Tdfa.Make (Char) (ActionRegistry.Tag)
+  module TaggedDfa = Automata.Tdfa.Make (Char) (ActionRegistry.Id)
   module TaggedNfa = TaggedDfa.TaggedNfa
   module Nfa = TaggedNfa.Nfa
 
-  type tag = ActionRegistry.Tag.t
+  type tag = ActionRegistry.Id.t
   type r = Regex.t
   type s = TaggedNfa.t
   type t = TaggedDfa.t

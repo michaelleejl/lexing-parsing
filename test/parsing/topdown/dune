@@ -1,0 +1,6 @@
+(library
+ (name test_lexparse_parsing_topdown)
+ (libraries lexparse test_lexparse_parsing)
+ (inline_tests)
+ (preprocess
+  (pps ppx_expect)))

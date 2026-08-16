@@ -1,3 +1,4 @@
+open Test_lexparse_parsing
 open Lexparse.Mlot
 open Lexparse.Parsing.Topdown.Combinators.LL1 (Grammars.LL1)
 

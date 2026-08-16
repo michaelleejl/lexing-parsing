@@ -1,24 +1,24 @@
 open Printf
 module Dfa = Lexparse.Automata.Dfa.Make (Char)
 module Nfa = Dfa.Nfa
+open Nfa
 
 let automata =
   [
-    ("empty", Nfa.empty);
-    ("epsilon", Nfa.epsilon);
-    ("[abc]", Nfa.one_of [ 'a'; 'b'; 'c' ]);
-    ("a|b", Nfa.alt (Nfa.one_of [ 'a' ]) (Nfa.one_of [ 'b' ]));
-    ("ab", Nfa.seq (Nfa.one_of [ 'a' ]) (Nfa.one_of [ 'b' ]));
-    ("a*", Nfa.kleene (Nfa.one_of [ 'a' ]));
-    ("a*b", Nfa.seq (Nfa.kleene (Nfa.one_of [ 'a' ])) (Nfa.one_of [ 'b' ]));
-    ("(a|b)*", Nfa.kleene (Nfa.alt (Nfa.one_of [ 'a' ]) (Nfa.one_of [ 'b' ])));
-    ("(ab)*", Nfa.kleene (Nfa.seq (Nfa.one_of [ 'a' ]) (Nfa.one_of [ 'b' ])));
+    ("empty", empty);
+    ("epsilon", epsilon);
+    ("[abc]", one_of [ 'a'; 'b'; 'c' ]);
+    ("a|b", alt (one_of [ 'a' ]) (one_of [ 'b' ]));
+    ("ab", seq (one_of [ 'a' ]) (one_of [ 'b' ]));
+    ("a*", kleene (one_of [ 'a' ]));
+    ("a*b", seq (kleene (one_of [ 'a' ])) (one_of [ 'b' ]));
+    ("(a|b)*", kleene (alt (one_of [ 'a' ]) (one_of [ 'b' ])));
+    ("(ab)*", kleene (seq (one_of [ 'a' ]) (one_of [ 'b' ])));
     ( "a(b|c)*d",
-      Nfa.seq
-        (Nfa.seq (Nfa.one_of [ 'a' ])
-           (Nfa.kleene (Nfa.alt (Nfa.one_of [ 'b' ]) (Nfa.one_of [ 'c' ]))))
-        (Nfa.one_of [ 'd' ]) );
-    ("(a*)*", Nfa.kleene (Nfa.kleene (Nfa.one_of [ 'a' ])));
+      seq
+        (seq (one_of [ 'a' ]) (kleene (alt (one_of [ 'b' ]) (one_of [ 'c' ]))))
+        (one_of [ 'd' ]) );
+    ("(a*)*", kleene (kleene (one_of [ 'a' ])));
   ]
 
 let inputs =
@@ -31,7 +31,7 @@ let%expect_test "determinise preserves the language" =
       List.iter
         (fun s ->
           let cs = List.init (String.length s) (String.get s) in
-          let n = Nfa.accept nfa cs and d = Dfa.accept dfa cs in
+          let n = accept nfa cs and d = Dfa.accept dfa cs in
           printf "%-10s %-8s nfa=%-5b dfa=%-5b%s\n" label (sprintf "%S" s) n d
             (if n = d then "" else "  MISMATCH"))
         inputs)
@@ -162,14 +162,13 @@ let%expect_test "determinise preserves the language" =
     |}]
 
 let%expect_test "stepping an nfa by hand" =
-  let nfa = Nfa.seq (Nfa.kleene (Nfa.one_of [ 'a' ])) (Nfa.one_of [ 'b' ]) in
-  let states = ref (Nfa.initialise nfa) in
+  let nfa = seq (kleene (one_of [ 'a' ])) (one_of [ 'b' ]) in
+  let states = ref (initialise nfa) in
   List.iter
     (fun c ->
-      states := Nfa.step nfa !states c;
+      states := step nfa !states c;
       printf "after %c: accepting=%b rejecting=%b\n" c
-        (Nfa.is_accepting nfa !states)
-        (Nfa.is_rejecting nfa !states))
+        (is_accepting nfa !states) (is_rejecting nfa !states))
     [ 'a'; 'a'; 'b' ];
   [%expect
     {|

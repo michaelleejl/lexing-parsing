@@ -1,4 +1,3 @@
-open Lexparse.Automata.Nfa
 module Nfa = Lexparse.Automata.Nfa.Make (Char)
 open Nfa
 open Printf
