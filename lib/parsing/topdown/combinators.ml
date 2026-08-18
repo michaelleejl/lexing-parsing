@@ -3,7 +3,7 @@ open Lang
 exception ParseFail of string
 
 module General (Grammar : GRAMMAR) = struct
-  module Elaborated = Elaborate (Grammar)
+  module Elaborated = TopDown_Elaborate (Grammar)
   module Bnf = Elaborated.Bnf
   open Elaborated
   open Bnf
@@ -81,7 +81,7 @@ module General (Grammar : GRAMMAR) = struct
 end
 
 module LL1 (Grammar : GRAMMAR) = struct
-  module Elaborated = Elaborate (Grammar)
+  module Elaborated = TopDown_Elaborate (Grammar)
   open Elaborated
   module Bnf = Elaborated.Bnf
   open Bnf

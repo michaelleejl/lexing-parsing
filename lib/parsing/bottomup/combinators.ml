@@ -8,7 +8,7 @@ open Ppx_compare_lib.Builtin
 exception ParseFail of string
 
 module General (Grammar : GRAMMAR) = struct
-  module Elaborated = Elaborate (Grammar)
+  module Elaborated = BottomUp_Elaborate (Grammar)
   module Bnf = Elaborated.Bnf
   open Elaborated
   open Bnf
@@ -96,7 +96,10 @@ module General (Grammar : GRAMMAR) = struct
         collect result;
         fallback ())
       else if production.lhs <> start then goto production args tokens fallback
-      else match tokens with [] -> accept production args | _ -> fallback ()
+      else
+        match tokens with
+        | [ t ] when t = eof -> accept production args
+        | _ -> fallback ()
     and collect result =
       perform
         (ReduceResult
@@ -159,7 +162,7 @@ module General (Grammar : GRAMMAR) = struct
 end
 
 module SLR1 (Grammar : GRAMMAR) = struct
-  module Elaborated = Elaborate (Grammar)
+  module Elaborated = BottomUp_Elaborate (Grammar)
   module Bnf = Elaborated.Bnf
   open Elaborated
   open Bnf
@@ -216,7 +219,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
 
   let action item tokens =
     match tokens with
-    | [] -> if is_accept item then Reduce (production_of item) else Nothing
+    | [] -> raise (ParseError "unexpected end of input")
     | tok :: _ -> (
         let t' = token_to_terminal tok in
         match next item with
@@ -244,7 +247,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
           else if production.lhs <> start then goto production args tokens
           else
             match tokens with
-            | [] -> accept production args
+            | [ t ] when t = eof -> accept production args
             | _ -> raise (ParseError "trailing input"))
     and collect result =
       Pending { result with dot = result.dot - 1; args = datum :: result.args }
@@ -293,7 +296,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
 end
 
 module LR1 (Grammar : GRAMMAR) = struct
-  module Elaborated = Elaborate (Grammar)
+  module Elaborated = BottomUp_Elaborate (Grammar)
   module Bnf = Elaborated.Bnf
   open Elaborated
   open Bnf
@@ -350,7 +353,7 @@ module LR1 (Grammar : GRAMMAR) = struct
 
   let action item tokens =
     match tokens with
-    | [] -> if is_accept item then Reduce (production_of item) else Nothing
+    | [] -> raise (ParseError "unexpected end of input")
     | tok :: _ -> (
         let t' = token_to_terminal tok in
         match next item with
@@ -378,7 +381,7 @@ module LR1 (Grammar : GRAMMAR) = struct
           else if production.lhs <> start then goto production args tokens
           else
             match tokens with
-            | [] -> accept production args
+            | [ t ] when t = eof -> accept production args
             | _ -> raise (ParseError "trailing input"))
     and collect result =
       Pending { result with dot = result.dot - 1; args = datum :: result.args }

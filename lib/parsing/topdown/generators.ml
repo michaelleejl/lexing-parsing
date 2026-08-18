@@ -4,7 +4,7 @@ open Ppx_compare_lib.Builtin
 exception ParseFail of string
 
 module General (Grammar : GRAMMAR) = struct
-  module Elaborated = Elaborate (Grammar)
+  module Elaborated = TopDown_Elaborate (Grammar)
   open Elaborated
   module Bnf = Elaborated.Bnf
   open Bnf
@@ -203,7 +203,7 @@ module General (Grammar : GRAMMAR) = struct
 end
 
 module LL1 (Grammar : GRAMMAR) = struct
-  module Elaborated = Elaborate (Grammar)
+  module Elaborated = TopDown_Elaborate (Grammar)
   open Elaborated
   module Bnf = Elaborated.Bnf
   open Bnf

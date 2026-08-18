@@ -7,7 +7,7 @@ open Lexparse.Parsing.Analysis
 (* Reports on the elaborated grammar, so the augmented production [S' ::= E $]
    shows up alongside the grammar's own. *)
 module Report (Grammar : GRAMMAR) = struct
-  module Elaborated = Elaborate (Grammar)
+  module Elaborated = TopDown_Elaborate (Grammar)
   module Bnf = Elaborated.Bnf
   module A = GrammarAnalysis (Bnf)
   open Views (Bnf)
@@ -112,7 +112,7 @@ let%expect_test "ll1: follow" =
   LL1.follow ();
   [%expect
     {|
-    follow(S'   ) =
+    follow(S'   ) = EOF
     follow(E    ) = RPAREN IN EOF
     follow(E'   ) = RPAREN IN EOF
     follow(T'   ) = RPAREN IN EOF
@@ -177,7 +177,7 @@ let%expect_test "left-factored: follow" =
   LeftFactored.follow ();
   [%expect
     {|
-    follow(S'   ) =
+    follow(S'   ) = EOF
     follow(E    ) = RPAREN IN EOF
     follow(T'   ) = RPAREN IN EOF
     follow(T    ) = RPAREN IN EOF

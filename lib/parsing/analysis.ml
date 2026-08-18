@@ -119,7 +119,8 @@ module GrammarAnalysis (Bnf : ELABORATED_BNF) = struct
       let initial =
         List.fold_left
           (fun map (p : production) -> NTMap.add p.lhs TSet.empty map)
-          NTMap.empty all_productions
+          (NTMap.singleton start (TSet.singleton eof_terminal))
+          productions.rest
       in
       fix ~eq:(NTMap.equal TSet.equal) follow_step initial
 
