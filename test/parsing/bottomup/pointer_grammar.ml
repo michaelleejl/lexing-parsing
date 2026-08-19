@@ -117,7 +117,10 @@ let prod_r = [ prod_r_l ]
 
 (* ---------- terminals --------*)
 let cons_ident =
-  { lhs = Terminal.IDENT; reader = (function ID x -> Name x | _ -> raise Fail) }
+  {
+    lhs = Terminal.IDENT;
+    reader = (function ID x -> Name x | _ -> raise Fail);
+  }
 
 let cons_silent lhs = { lhs; reader = (fun _ -> Nothing) }
 
