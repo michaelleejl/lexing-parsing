@@ -9,7 +9,7 @@ module type S = sig
   module InputSet : Set.S with type elt = Nfa.InputSet.elt
   module InputMap : Map.S with type key = input
 
-  type state = StateSet.elt
+  type state = StateSet.elt [@@deriving compare]
   type state_set = StateSet.t
   type input_set = InputSet.t
   type transition = state InputMap.t
@@ -44,7 +44,7 @@ module Make (Input : INPUT) = struct
   module InputMap = Map.Make (Input)
   module State = Int
 
-  type state = State.t
+  type state = State.t [@@deriving compare]
   type state_set = StateSet.t
   type input_set = InputSet.t
   type transition = state InputMap.t
