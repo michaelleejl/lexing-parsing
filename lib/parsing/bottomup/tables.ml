@@ -29,7 +29,7 @@ module Actions (State : STATE) = struct
         (fun item acc ->
           match (act item terminal, acc) with
           | None, acc -> acc
-          | Some a, acc -> a::acc)
+          | Some a, acc -> a :: acc)
         items []
     in
     acts
@@ -40,10 +40,8 @@ module Actions (State : STATE) = struct
 
   List.iter (fun s -> List.iter (add s) terminals) all_states;;
 
-  let find state terminal =
-    Hashtbl.find table (state, terminal)
+  let find state terminal = Hashtbl.find table (state, terminal)
 end
-
 
 module Action (State : STATE) = struct
   open State
@@ -55,7 +53,7 @@ module Action (State : STATE) = struct
   exception Conflict
   exception NoAction
 
-  type act = Shift | Reduce of production 
+  type act = Shift | Reduce of production
 
   let table = Hashtbl.create 256
 
