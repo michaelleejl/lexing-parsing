@@ -3,4 +3,4 @@
  (libraries lexparse)
  (inline_tests)
  (preprocess
-  (pps ppx_expect)))
+  (pps ppx_lexparse ppx_jane ppx_expect)))

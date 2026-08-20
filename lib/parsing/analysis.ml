@@ -2,6 +2,8 @@ open Lang
 open Fixpoint
 open Ppx_compare_lib.Builtin
 
+exception CyclicGrammar
+
 module GrammarAnalysis (Bnf : ELABORATED_BNF) = struct
   open Bnf
   open Views (Bnf)
@@ -125,5 +127,38 @@ module GrammarAnalysis (Bnf : ELABORATED_BNF) = struct
       fix ~eq:(NTMap.equal TSet.equal) follow_step initial
 
     let nonterminal nonterm = NTMap.find nonterm table
+  end
+
+  module Cycles = struct
+    let find nt map =
+      match NTMap.find_opt nt map with Some x -> x | None -> NTSet.empty
+
+    let table =
+      let init map nt =
+        let rec rhs_to_set acc = function
+          | [] | T _ :: _ -> acc
+          | N n :: syms ->
+              let acc' = if Nullable.syms syms then NTSet.add n acc else acc in
+              if Nullable.sym (N n) then rhs_to_set acc' syms else acc'
+        in
+        let productions = productions_of_nonterminal nt in
+        let rhss = List.map (fun p -> p.rhs) productions in
+        let nts = List.fold_left rhs_to_set NTSet.empty rhss in
+
+        NTMap.add nt nts map
+      in
+      let update map =
+        NTMap.map
+          (fun set ->
+            NTSet.fold (fun nt acc -> NTSet.union (find nt map) acc) set set)
+          map
+      in
+      let initial = List.fold_left init NTMap.empty nonterminals in
+      fix ~eq:(NTMap.equal NTSet.equal) update initial
+    ;;
+
+    NTMap.iter
+      (fun nt set -> if NTSet.mem nt set then raise CyclicGrammar)
+      table
   end
 end
