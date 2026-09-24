@@ -128,6 +128,6 @@ let describe = function
 let run parse =
   List.iter
     (fun (src, toks) ->
-      let result = try Ast.to_str (parse toks) with e -> describe e in
+      let result = try Ast.to_string (parse toks) with e -> describe e in
       printf "%-32s %s\n" src result)
     cases

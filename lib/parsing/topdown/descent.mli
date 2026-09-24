@@ -1,4 +1,4 @@
-module General : sig
+module Generalised : sig
   type token = Mlot.Token.t
   type ast = Mlot.Ast.node
 

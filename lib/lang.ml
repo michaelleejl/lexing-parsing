@@ -1,6 +1,6 @@
 open Ppx_compare_lib.Builtin
 
-module type VOCABULARY = sig
+module type LEXICAL_SPEC = sig
   type input
   type token [@@deriving compare]
   type spec
@@ -64,7 +64,7 @@ end
 
 (* Compiler facing definitions*)
 
-module type ELABORATED_BNF = sig
+module type AUGMENTED_BNF = sig
   module Terminal : sig
     type t [@@deriving compare, to_string]
   end
@@ -91,7 +91,7 @@ module type ELABORATED_BNF = sig
   val eof_terminal : terminal
 end
 
-module type ELABORATED_GRAMMAR = sig
+module type AUGMENTED_GRAMMAR = sig
   exception Fail
 
   type token [@@deriving compare]
@@ -107,7 +107,7 @@ module type ELABORATED_GRAMMAR = sig
   type builder
   type reader
 
-  module Bnf : ELABORATED_BNF
+  module Bnf : AUGMENTED_BNF
 
   val builder_of_production : Bnf.production -> builder
   val reader_of_terminal : Bnf.terminal -> reader
@@ -144,8 +144,8 @@ struct
   let start = StartSym
 end
 
-module TopDown_Elaborate (Grammar : GRAMMAR) :
-  ELABORATED_GRAMMAR
+module Topdown_augment (Grammar : GRAMMAR) :
+  AUGMENTED_GRAMMAR
     with type token = Grammar.token
      and type ast = Grammar.ast
      and type reader = Grammar.reader
@@ -253,8 +253,8 @@ struct
   let eof = Grammar.eof
 end
 
-module BottomUp_Elaborate (Grammar : GRAMMAR) :
-  ELABORATED_GRAMMAR
+module Bottomup_augment (Grammar : GRAMMAR) :
+  AUGMENTED_GRAMMAR
     with type token = Grammar.token
      and type ast = Grammar.ast
      and type reader = Grammar.reader
@@ -362,7 +362,7 @@ struct
   let eof = Grammar.eof
 end
 
-module Views (Bnf : ELABORATED_BNF) = struct
+module Views (Bnf : AUGMENTED_BNF) = struct
   open Bnf
   module NTMap = Map.Make (Nonterminal)
   module TSet = Set.Make (Terminal)

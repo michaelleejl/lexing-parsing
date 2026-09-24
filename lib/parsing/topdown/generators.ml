@@ -3,14 +3,14 @@ open Ppx_compare_lib.Builtin
 
 exception ParseFail of string
 
-module General (Grammar : GRAMMAR) = struct
-  module Elaborated = TopDown_Elaborate (Grammar)
-  open Elaborated
-  module Bnf = Elaborated.Bnf
+module Generalised (Grammar : GRAMMAR) = struct
+  module Augmented = Topdown_augment (Grammar)
+  open Augmented
+  module Bnf = Augmented.Bnf
   open Bnf
 
-  type token = Elaborated.token
-  type ast = Elaborated.ast
+  type token = Augmented.token
+  type ast = Augmented.ast
 
   open Views (Bnf)
 
@@ -81,7 +81,7 @@ module General (Grammar : GRAMMAR) = struct
 
   module ParseHypotheses = Set.Make (ParseHypothesis)
 
-  type parsing_state = { tokens : token list; hypotheses : ParseHypotheses.t }
+  type parse_state = { tokens : token list; hypotheses : ParseHypotheses.t }
 
   let rec evolve_stack token tags stack =
     match tags with
@@ -151,14 +151,14 @@ module General (Grammar : GRAMMAR) = struct
     ((Some terminal, T terminal), (state, [], tag))
 
   let alt = TransitionSet.union
-  let ( >>| ) = alt
+  let ( <|> ) = alt
 
   let compile productions =
     let state = 0 in
     let ts =
       TransitionSet.of_list
         (List.map (production_to_transition state) productions)
-      >>| TransitionSet.of_list
+      <|> TransitionSet.of_list
             (List.map (terminal_to_transition state) terminals)
     in
     let transitions =
@@ -203,13 +203,13 @@ module General (Grammar : GRAMMAR) = struct
 end
 
 module LL1 (Grammar : GRAMMAR) = struct
-  module Elaborated = TopDown_Elaborate (Grammar)
-  open Elaborated
-  module Bnf = Elaborated.Bnf
+  module Augmented = Topdown_augment (Grammar)
+  open Augmented
+  module Bnf = Augmented.Bnf
   open Bnf
 
-  type token = Elaborated.token
-  type ast = Elaborated.ast
+  type token = Augmented.token
+  type ast = Augmented.ast
 
   open Views (Bnf)
 
@@ -303,7 +303,7 @@ module LL1 (Grammar : GRAMMAR) = struct
   open Analysis
   open GrammarAnalysis (Bnf)
 
-  type parsing_state = { tokens : token list; stack : ParseStack.t }
+  type parse_state = { tokens : token list; stack : ParseStack.t }
 
   let evolve_stack token tag stack =
     let step = StepRegistry.get tag in
@@ -332,7 +332,7 @@ module LL1 (Grammar : GRAMMAR) = struct
   let rec parse_run ({ tokens; stack } as state) =
     match tokens with
     | _ :: _ -> parse_run (parse_step state)
-    | [] -> Elaborated.finish (ParseStack.unwrap stack)
+    | [] -> Augmented.finish (ParseStack.unwrap stack)
 
   let compile ps =
     List.iter
@@ -344,7 +344,7 @@ module LL1 (Grammar : GRAMMAR) = struct
       (fun (p : production) ->
         let tag = register_prediction p in
         let firsts = First.syms p.rhs in
-        let firsts' = drop_eps firsts in
+        let firsts' = to_terminals firsts in
         TSet.iter (fun term -> ParseTable.add (N p.lhs, term) tag) firsts';
         if TESet.mem TE.Eps firsts then
           let follows = Follow.nonterminal p.lhs in

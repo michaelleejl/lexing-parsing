@@ -7,15 +7,15 @@ open Ppx_compare_lib.Builtin
 
 exception ParseFail of string
 
-module General (Grammar : GRAMMAR) = struct
-  module Elaborated = BottomUp_Elaborate (Grammar)
-  module Bnf = Elaborated.Bnf
-  open Elaborated
+module Generalised (Grammar : GRAMMAR) = struct
+  module Augmented = Bottomup_augment (Grammar)
+  module Bnf = Augmented.Bnf
+  open Augmented
   open Bnf
   open Views (Bnf)
 
-  type token = Elaborated.token [@@deriving compare]
-  type ast = Elaborated.ast [@@deriving compare]
+  type token = Augmented.token [@@deriving compare]
+  type ast = Augmented.ast [@@deriving compare]
 
   module Item = LR0.Make (Bnf)
   open Item
@@ -36,14 +36,14 @@ module General (Grammar : GRAMMAR) = struct
   type parse_state = { items : ItemSet.t; datum : data; tokens : token list }
   type act = Shift | Reduce of production | Nothing
 
-  type result = {
+  type reduction = {
     production : production;
     dot : int;
     args : data list;
     tokens : token list;
   }
 
-  type _ Effect.t += ReduceResult : result -> unit Effect.t
+  type _ Effect.t += ReduceResult : reduction -> unit Effect.t
 
   let shift_sym_on_items items sym =
     ItemSet.fold
@@ -57,7 +57,7 @@ module General (Grammar : GRAMMAR) = struct
     match tokens with
     | token :: tokens ->
         let terminal = token_to_terminal token in
-        let datum = Elaborated.read (reader_of_terminal terminal) token in
+        let datum = Augmented.read (reader_of_terminal terminal) token in
         let new_items = shift_sym_on_items items (T terminal) in
         { tokens; datum; items = new_items }
     | _ -> raise (ParseError "token mismatch")
@@ -162,14 +162,14 @@ module General (Grammar : GRAMMAR) = struct
 end
 
 module SLR1 (Grammar : GRAMMAR) = struct
-  module Elaborated = BottomUp_Elaborate (Grammar)
-  module Bnf = Elaborated.Bnf
-  open Elaborated
+  module Augmented = Bottomup_augment (Grammar)
+  module Bnf = Augmented.Bnf
+  open Augmented
   open Bnf
   open Views (Bnf)
 
-  type token = Elaborated.token [@@deriving compare]
-  type ast = Elaborated.ast [@@deriving compare]
+  type token = Augmented.token [@@deriving compare]
+  type ast = Augmented.ast [@@deriving compare]
 
   module Item = LR0.Make (Bnf)
   open Item
@@ -188,14 +188,14 @@ module SLR1 (Grammar : GRAMMAR) = struct
   type parse_state = { items : ItemSet.t; datum : data; tokens : token list }
   type act = Shift | Reduce of production | Nothing
 
-  type result = {
+  type reduction = {
     production : production;
     dot : int;
     args : data list;
     tokens : token list;
   }
 
-  type outcome = Pending of result | Accepted of ast
+  type outcome = Pending of reduction | Accepted of ast
 
   let shift_sym_on_items items sym =
     ItemSet.fold
@@ -209,7 +209,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
     match tokens with
     | token :: tokens ->
         let terminal = token_to_terminal token in
-        let datum = Elaborated.read (reader_of_terminal terminal) token in
+        let datum = Augmented.read (reader_of_terminal terminal) token in
         let new_items = shift_sym_on_items items (T terminal) in
         { tokens; datum; items = new_items }
     | _ -> raise (ParseError "token mismatch")
@@ -224,7 +224,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
         let t' = token_to_terminal tok in
         match next item with
         | None ->
-            if is_valid_for item t' then Reduce (production_of item)
+            if may_reduce_on item t' then Reduce (production_of item)
             else Nothing
         | Some (T t) -> if t <> t' then Nothing else Shift
         | _ -> Nothing)
@@ -296,14 +296,14 @@ module SLR1 (Grammar : GRAMMAR) = struct
 end
 
 module LR1 (Grammar : GRAMMAR) = struct
-  module Elaborated = BottomUp_Elaborate (Grammar)
-  module Bnf = Elaborated.Bnf
-  open Elaborated
+  module Augmented = Bottomup_augment (Grammar)
+  module Bnf = Augmented.Bnf
+  open Augmented
   open Bnf
   open Views (Bnf)
 
-  type token = Elaborated.token [@@deriving compare]
-  type ast = Elaborated.ast [@@deriving compare]
+  type token = Augmented.token [@@deriving compare]
+  type ast = Augmented.ast [@@deriving compare]
 
   module Item = Items.LR1.Make (Bnf)
   open Item
@@ -322,14 +322,14 @@ module LR1 (Grammar : GRAMMAR) = struct
   type parse_state = { items : ItemSet.t; datum : data; tokens : token list }
   type act = Shift | Reduce of production | Nothing
 
-  type result = {
+  type reduction = {
     production : production;
     dot : int;
     args : data list;
     tokens : token list;
   }
 
-  type outcome = Pending of result | Accepted of ast
+  type outcome = Pending of reduction | Accepted of ast
 
   let shift_sym_on_items items sym =
     ItemSet.fold
@@ -343,7 +343,7 @@ module LR1 (Grammar : GRAMMAR) = struct
     match tokens with
     | token :: tokens ->
         let terminal = token_to_terminal token in
-        let datum = Elaborated.read (reader_of_terminal terminal) token in
+        let datum = Augmented.read (reader_of_terminal terminal) token in
         let new_items = shift_sym_on_items items (T terminal) in
         { tokens; datum; items = new_items }
     | _ -> raise (ParseError "token mismatch")
@@ -358,7 +358,7 @@ module LR1 (Grammar : GRAMMAR) = struct
         let t' = token_to_terminal tok in
         match next item with
         | None ->
-            if is_valid_for item t' then Reduce (production_of item)
+            if may_reduce_on item t' then Reduce (production_of item)
             else Nothing
         | Some (T t) -> if t <> t' then Nothing else Shift
         | _ -> Nothing)

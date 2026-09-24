@@ -3,7 +3,7 @@ open Mlot.Ast
 
 exception ParseFail of string
 
-module General = struct
+module Generalised = struct
   type token = Mlot.Token.t
   type ast = Mlot.Ast.node
 
@@ -92,7 +92,7 @@ module LL1 = struct
   (* consume a terminal the prediction has already committed to *)
   let expect tok = function
     | t :: rest when t = tok -> rest
-    | _ -> raise (ParseFail ("expected " ^ Mlot.Token.to_str tok))
+    | _ -> raise (ParseFail ("expected " ^ Mlot.Token.to_string tok))
 
   let expect_ident = function
     | IDENT x :: rest -> (x, rest)

@@ -2,14 +2,14 @@ open Lang
 
 exception ParseFail of string
 
-module General (Grammar : GRAMMAR) = struct
-  module Elaborated = TopDown_Elaborate (Grammar)
-  module Bnf = Elaborated.Bnf
-  open Elaborated
+module Generalised (Grammar : GRAMMAR) = struct
+  module Augmented = Topdown_augment (Grammar)
+  module Bnf = Augmented.Bnf
+  open Augmented
   open Bnf
 
-  type token = Elaborated.token
-  type ast = Elaborated.ast
+  type token = Augmented.token
+  type ast = Augmented.ast
 
   let alt p1 p2 toks = try p1 toks with ParseFail _ -> p2 toks
 
@@ -18,8 +18,8 @@ module General (Grammar : GRAMMAR) = struct
     let d2, toks'' = p2 toks' in
     (d1 @ d2, toks'')
 
-  let ( >>| ) = alt
-  let ( >>& ) = seq
+  let ( <|> ) = alt
+  let ( <&> ) = seq
   let empty _ = raise (ParseFail "empty")
   let eps toks = ([], toks)
 
@@ -58,14 +58,14 @@ module General (Grammar : GRAMMAR) = struct
     | N n -> Fun.compose parser_to_accumulator (nonterminal_to_parser n fs)
 
   let production_to_accumulator fs (p : production) =
-    List.fold_left ( >>& ) eps (List.map (sym_to_accumulator fs) p.rhs)
+    List.fold_left ( <&> ) eps (List.map (sym_to_accumulator fs) p.rhs)
 
   let production_to_parser fs p toks =
     let accumulator, toks' = production_to_accumulator fs p toks in
     (build (builder_of_production p) accumulator, toks')
 
   let productions_to_parsers (pss : production list) fs =
-    List.fold_left ( >>| ) empty (List.map (production_to_parser fs) pss)
+    List.fold_left ( <|> ) empty (List.map (production_to_parser fs) pss)
 
   let parsers =
     List.map productions_to_parsers
@@ -81,9 +81,9 @@ module General (Grammar : GRAMMAR) = struct
 end
 
 module LL1 (Grammar : GRAMMAR) = struct
-  module Elaborated = TopDown_Elaborate (Grammar)
-  open Elaborated
-  module Bnf = Elaborated.Bnf
+  module Augmented = Topdown_augment (Grammar)
+  open Augmented
+  module Bnf = Augmented.Bnf
   open Bnf
   open Analysis
 
@@ -93,9 +93,9 @@ module LL1 (Grammar : GRAMMAR) = struct
   open GrammarAnalysis (Bnf)
 
   type parser = token list -> data * token list
-  type predictive_parser = { guard : TSet.t; parser : parser }
+  type predictive_parser = { prediction : TSet.t; parser : parser }
 
-  let predict { guard = g1; parser = p1 } { guard = g2; parser = p2 } =
+  let predict { prediction = g1; parser = p1 } { prediction = g2; parser = p2 } =
     if TSet.disjoint g1 g2 then
       let parser = function
         | tok :: _ as toks ->
@@ -105,7 +105,7 @@ module LL1 (Grammar : GRAMMAR) = struct
             else raise (ParseFail "unexpected token")
         | _ -> raise (ParseFail "bad parse")
       in
-      { guard = TSet.union g1 g2; parser }
+      { prediction = TSet.union g1 g2; parser }
     else raise (ParseFail "grammar not in LL1")
 
   let seq p1 p2 toks =
@@ -113,9 +113,9 @@ module LL1 (Grammar : GRAMMAR) = struct
     let d2, toks'' = p2 toks' in
     (d1 @ d2, toks'')
 
-  let ( >>| ) = predict
-  let ( >>& ) = seq
-  let empty = { guard = TSet.empty; parser = (fun _ -> assert false) }
+  let ( <|> ) = predict
+  let ( <&> ) = seq
+  let empty = { prediction = TSet.empty; parser = (fun _ -> assert false) }
   let eps toks = ([], toks)
 
   module TerminalMap = Map.Make (Bnf.Terminal)
@@ -153,23 +153,23 @@ module LL1 (Grammar : GRAMMAR) = struct
     | N n -> Fun.compose parser_to_accumulator (nonterminal_to_parser n fs)
 
   let production_to_accumulator fs p =
-    List.fold_left ( >>& ) eps (List.map (sym_to_accumulator fs) p.rhs)
+    List.fold_left ( <&> ) eps (List.map (sym_to_accumulator fs) p.rhs)
 
   let production_to_parser fs lhs p =
     let parser toks =
       let accumulator, toks' = production_to_accumulator fs p toks in
       (build (builder_of_production p) accumulator, toks')
     in
-    let guard =
-      let first = First.syms p.rhs |> drop_eps in
+    let prediction =
+      let first = First.syms p.rhs |> to_terminals in
       if Nullable.syms p.rhs then TSet.union first (Follow.nonterminal p.lhs)
       else first
     in
-    { parser; guard }
+    { parser; prediction }
 
   let productions_to_parsers ((lhs, pss) : nonterminal * production list) fs =
     let { parser } =
-      List.fold_left ( >>| ) empty (List.map (production_to_parser fs lhs) pss)
+      List.fold_left ( <|> ) empty (List.map (production_to_parser fs lhs) pss)
     in
     parser
 

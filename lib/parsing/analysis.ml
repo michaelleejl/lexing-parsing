@@ -4,7 +4,7 @@ open Ppx_compare_lib.Builtin
 
 exception CyclicGrammar
 
-module GrammarAnalysis (Bnf : ELABORATED_BNF) = struct
+module GrammarAnalysis (Bnf : AUGMENTED_BNF) = struct
   open Bnf
   open Views (Bnf)
   module TSet = Set.Make (Terminal)
@@ -18,15 +18,15 @@ module GrammarAnalysis (Bnf : ELABORATED_BNF) = struct
   open TE
   module TESet = Set.Make (TE)
 
-  let drop_eps te_set =
+  let to_terminals te_set =
     TESet.fold
       (fun te acc -> match te with Eps -> acc | Term t -> TSet.add t acc)
       te_set TSet.empty
 
-  let strip te_set = TESet.diff te_set (TESet.singleton Eps)
+  let strip_eps te_set = TESet.diff te_set (TESet.singleton Eps)
 
   module Nullable = struct
-    let set =
+    let nonterminals =
       let is_sym_nullable nullable = function
         | T _ -> false
         | N n -> NTSet.mem n nullable
@@ -43,7 +43,7 @@ module GrammarAnalysis (Bnf : ELABORATED_BNF) = struct
       in
       fix ~eq:NTSet.equal step NTSet.empty
 
-    let sym = function T _ -> false | N n -> NTSet.mem n set
+    let sym = function T _ -> false | N n -> NTSet.mem n nonterminals
     let syms = List.for_all sym
   end
 
@@ -54,7 +54,7 @@ module GrammarAnalysis (Bnf : ELABORATED_BNF) = struct
         | [] -> TESet.empty
         | T t :: _ -> TESet.singleton (Term t)
         | N n :: syms ->
-            let ts = NTMap.find n firsts |> strip in
+            let ts = NTMap.find n firsts |> strip_eps in
             if Nullable.sym (N n) then TESet.union ts (first_seq firsts syms)
             else ts
       in
@@ -86,7 +86,7 @@ module GrammarAnalysis (Bnf : ELABORATED_BNF) = struct
       | [] -> TESet.singleton Eps
       | s :: ss ->
           let first_sym = sym s in
-          if Nullable.sym s then TESet.union (strip first_sym) (syms ss)
+          if Nullable.sym s then TESet.union (strip_eps first_sym) (syms ss)
           else first_sym
   end
 
@@ -98,7 +98,7 @@ module GrammarAnalysis (Bnf : ELABORATED_BNF) = struct
           | [] -> NTMap.empty
           | T t :: syms -> follow_seq syms
           | N n :: syms ->
-              let first_after = First.syms syms |> drop_eps in
+              let first_after = First.syms syms |> to_terminals in
               let contribution =
                 if Nullable.syms syms then
                   TSet.union first_after (NTMap.find lhs follows)

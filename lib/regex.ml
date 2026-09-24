@@ -1,29 +1,29 @@
-module C = Set.Make (Char)
+module Charset = Set.Make (Char)
 
-type 'c rgx =
+type 'c regex =
   | Empty
   | Epsilon
-  | Char of 'c
-  | Alt of 'c rgx * 'c rgx
-  | Seq of 'c rgx * 'c rgx
-  | Kleene of 'c rgx
+  | Chars of 'c
+  | Alt of 'c regex * 'c regex
+  | Seq of 'c regex * 'c regex
+  | Kleene of 'c regex
 
-type t = C.t rgx
+type t = Charset.t regex
 
 let empty = Empty
 let epsilon = Epsilon
-let chr c = Char (C.singleton c)
+let chr c = Chars (Charset.singleton c)
 
 let str s =
   List.fold_right
-    (fun c -> fun acc -> Seq (Char (C.singleton c), acc))
+    (fun c -> fun acc -> Seq (Chars (Charset.singleton c), acc))
     (Base.String.to_list s) Epsilon
 
-let chrs cs = Char cs
+let chrs cs = Chars cs
 
 let alt r1 r2 =
   match (r1, r2) with
-  | Char c1, Char c2 -> Char (C.union c1 c2)
+  | Chars c1, Chars c2 -> Chars (Charset.union c1 c2)
   | r1, r2 -> Alt (r1, r2)
 
 let seq r1 r2 = Seq (r1, r2)
@@ -38,14 +38,14 @@ let ( ~? ) = opt
 
 let range_ l h =
   let rec loop i h acc =
-    if i = h then C.add (Char.chr i) acc
-    else loop (i + 1) h (C.add (Char.chr i) acc)
+    if i = h then Charset.add (Char.chr i) acc
+    else loop (i + 1) h (Charset.add (Char.chr i) acc)
   in
-  loop l h C.empty
+  loop l h Charset.empty
 
-let range l h = Char (range_ l h)
+let range l h = Chars (range_ l h)
 let any_ = range_ 0 255
-let any = Char any_
+let any = Chars any_
 
 module Parse = struct
   exception Failure
@@ -58,11 +58,11 @@ module Parse = struct
       let cs =
         List.fold_right
           (function
-            | Char c -> C.add c
-            | Range (cl, ch) -> C.union (range_ (Char.code cl) (Char.code ch)))
-          elements C.empty
+            | Char c -> Charset.add c
+            | Range (cl, ch) -> Charset.union (range_ (Char.code cl) (Char.code ch)))
+          elements Charset.empty
       in
-      if negated then C.diff any_ cs else cs
+      if negated then Charset.diff any_ cs else cs
 
     let parse_element cs =
       match cs with
@@ -93,7 +93,7 @@ module Parse = struct
   type t =
     | Empty
     | Epsilon
-    | Char of C.t
+    | Chars of Charset.t
     | Alt of t * t
     | Seq of t * t
     | Kleene of t
@@ -102,7 +102,7 @@ module Parse = struct
     | Any
     | Bracketed of Bracket.t
 
-  let whitespace = C.of_list Char.[ chr 32; chr 12; chr 10; chr 13; chr 9 ]
+  let whitespace = Charset.of_list Char.[ chr 32; chr 12; chr 10; chr 13; chr 9 ]
 
   let parse_bracketed s =
     match s with
@@ -124,12 +124,12 @@ module Parse = struct
     | '[' :: rest -> Some (parse_bracketed rest)
     | [] | (')' | '|' | '*' | '+' | '?') :: _ -> None
     | '.' :: cs -> Some (Any, cs)
-    | '\\' :: 's' :: cs -> Some (Char whitespace, cs)
-    | '\\' :: '+' :: cs -> Some (Char (C.singleton '+'), cs)
-    | '\\' :: '(' :: cs -> Some (Char (C.singleton '('), cs)
-    | '\\' :: ')' :: cs -> Some (Char (C.singleton ')'), cs)
+    | '\\' :: 's' :: cs -> Some (Chars whitespace, cs)
+    | '\\' :: '+' :: cs -> Some (Chars (Charset.singleton '+'), cs)
+    | '\\' :: '(' :: cs -> Some (Chars (Charset.singleton '('), cs)
+    | '\\' :: ')' :: cs -> Some (Chars (Charset.singleton ')'), cs)
     | '\\' :: c :: cs -> raise Failure
-    | c :: cs -> Some (Char (C.singleton c), cs)
+    | c :: cs -> Some (Chars (Charset.singleton c), cs)
 
   and parse_suffixed s =
     match parse_atom s with
@@ -163,14 +163,14 @@ module Parse = struct
   let rec interpret = function
     | Empty -> empty
     | Epsilon -> epsilon
-    | Char cs -> chrs cs
+    | Chars cs -> chrs cs
     | Alt (r1, r2) -> alt (interpret r1) (interpret r2)
     | Seq (r1, r2) -> seq (interpret r1) (interpret r2)
     | Kleene r -> kleene (interpret r)
     | Plus r -> plus (interpret r)
     | Opt r -> opt (interpret r)
     | Any -> any
-    | Bracketed b -> Char (Bracket.interpret b)
+    | Bracketed b -> Chars (Bracket.interpret b)
 end
 
 let r s = Parse.(interpret (parse (Base.String.to_list s)))

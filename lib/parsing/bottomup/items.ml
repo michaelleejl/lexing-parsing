@@ -2,7 +2,7 @@ open Lang
 open Ppx_compare_lib.Builtin
 
 module type ITEM = sig
-  include ELABORATED_BNF
+  include AUGMENTED_BNF
 
   type t [@@deriving compare]
   type item = t
@@ -14,12 +14,12 @@ module type ITEM = sig
   val next : item -> sym option
   val advance : item -> sym -> item option
   val eps : item -> item list
-  val is_valid_for : item -> terminal -> bool
+  val may_reduce_on : item -> terminal -> bool
   val production_of : item -> production
 end
 
 module LR0 = struct
-  module Make (Bnf : ELABORATED_BNF) :
+  module Make (Bnf : AUGMENTED_BNF) :
     ITEM
       with module Terminal = Bnf.Terminal
        and module Nonterminal = Bnf.Nonterminal
@@ -80,7 +80,7 @@ module LR0 = struct
     let items = { start = start_item; accept = accept_item; rest = rest_items }
     let production_of { production } = production
 
-    let is_valid_for item terminal =
+    let may_reduce_on item terminal =
       let production = production_of item in
       let lhs = production.lhs in
       TSet.mem terminal (Follow.nonterminal lhs)
@@ -88,7 +88,7 @@ module LR0 = struct
 end
 
 module LR1 = struct
-  module Make (Bnf : ELABORATED_BNF) :
+  module Make (Bnf : AUGMENTED_BNF) :
     ITEM
       with module Terminal = Bnf.Terminal
        and module Nonterminal = Bnf.Nonterminal
@@ -136,7 +136,7 @@ module LR1 = struct
           let suffix = List.drop (dot + 1) production.rhs in
           let productions = productions_of_nonterminal n in
           let lookaheads =
-            First.syms (suffix @ [ T lookahead ]) |> drop_eps |> TSet.to_list
+            First.syms (suffix @ [ T lookahead ]) |> to_terminals |> TSet.to_list
           in
           List.map
             (fun production ->
@@ -167,6 +167,6 @@ module LR1 = struct
 
     let items = { start = start_item; accept = accept_item; rest = rest_items }
     let production_of { production } = production
-    let is_valid_for item terminal = item.lookahead = terminal
+    let may_reduce_on item terminal = item.lookahead = terminal
   end
 end

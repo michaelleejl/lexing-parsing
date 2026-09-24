@@ -7,15 +7,15 @@ open Ppx_compare_lib.Builtin
 
 exception ParseFail of string
 
-module General (Grammar : GRAMMAR) = struct
-  module Elaborated = BottomUp_Elaborate (Grammar)
-  module Bnf = Elaborated.Bnf
-  open Elaborated
+module Generalised (Grammar : GRAMMAR) = struct
+  module Augmented = Bottomup_augment (Grammar)
+  module Bnf = Augmented.Bnf
+  open Augmented
   open Bnf
   open Views (Bnf)
 
-  type token = Elaborated.token [@@deriving compare]
-  type ast = Elaborated.ast [@@deriving compare]
+  type token = Augmented.token [@@deriving compare]
+  type ast = Augmented.ast [@@deriving compare]
 
   module Item = LR0.Make (Bnf)
   module State = States.Make (Item)
@@ -51,7 +51,7 @@ module General (Grammar : GRAMMAR) = struct
         begin try
           let terminal = token_to_terminal token in
           let sym = T terminal in
-          let datum = Elaborated.read (reader_of_terminal terminal) token in
+          let datum = Augmented.read (reader_of_terminal terminal) token in
           let data_stack = datum :: data_stack in
           let state = List.hd state_stack in
           let state_stack = next state sym :: state_stack in
@@ -118,14 +118,14 @@ module General (Grammar : GRAMMAR) = struct
 end
 
 module SLR1 (Grammar : GRAMMAR) = struct
-  module Elaborated = BottomUp_Elaborate (Grammar)
-  module Bnf = Elaborated.Bnf
-  open Elaborated
+  module Augmented = Bottomup_augment (Grammar)
+  module Bnf = Augmented.Bnf
+  open Augmented
   open Bnf
   open Views (Bnf)
 
-  type token = Elaborated.token [@@deriving compare]
-  type ast = Elaborated.ast [@@deriving compare]
+  type token = Augmented.token [@@deriving compare]
+  type ast = Augmented.ast [@@deriving compare]
 
   module Item = LR0.Make (Bnf)
   module State = States.Make (Item)
@@ -137,13 +137,13 @@ module SLR1 (Grammar : GRAMMAR) = struct
   type data_stack = data list [@@deriving compare]
   type state_stack = State.t list [@@deriving compare]
 
-  type parse = {
+  type config = {
     data_stack : data_stack;
     state_stack : state_stack;
     tokens : token list 
   }
 
-  type parse_state = Partial of parse | Complete of ast 
+  type parse_state = Partial of config | Complete of ast 
 
 
   let accept args =
@@ -155,7 +155,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
         begin try
           let terminal = token_to_terminal token in
           let sym = T terminal in
-          let datum = Elaborated.read (reader_of_terminal terminal) token in
+          let datum = Augmented.read (reader_of_terminal terminal) token in
           let data_stack = datum :: data_stack in
           let state = List.hd state_stack in
           let state_stack = next state sym :: state_stack in
@@ -209,14 +209,14 @@ module SLR1 (Grammar : GRAMMAR) = struct
 end
 
 module LR1 (Grammar : GRAMMAR) = struct
-  module Elaborated = BottomUp_Elaborate (Grammar)
-  module Bnf = Elaborated.Bnf
-  open Elaborated
+  module Augmented = Bottomup_augment (Grammar)
+  module Bnf = Augmented.Bnf
+  open Augmented
   open Bnf
   open Views (Bnf)
 
-  type token = Elaborated.token [@@deriving compare]
-  type ast = Elaborated.ast [@@deriving compare]
+  type token = Augmented.token [@@deriving compare]
+  type ast = Augmented.ast [@@deriving compare]
 
   module Item = LR1.Make (Bnf)
   module State = States.Make (Item)
@@ -228,13 +228,13 @@ module LR1 (Grammar : GRAMMAR) = struct
   type data_stack = data list [@@deriving compare]
   type state_stack = State.t list [@@deriving compare]
 
-  type parse = {
+  type config = {
     data_stack : data_stack;
     state_stack : state_stack;
     tokens : token list 
   }
 
-  type parse_state = Partial of parse | Complete of ast 
+  type parse_state = Partial of config | Complete of ast 
 
 
   let accept args =
@@ -246,7 +246,7 @@ module LR1 (Grammar : GRAMMAR) = struct
         begin try
           let terminal = token_to_terminal token in
           let sym = T terminal in
-          let datum = Elaborated.read (reader_of_terminal terminal) token in
+          let datum = Augmented.read (reader_of_terminal terminal) token in
           let data_stack = datum :: data_stack in
           let state = List.hd state_stack in
           let state_stack = next state sym :: state_stack in

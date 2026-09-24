@@ -284,7 +284,7 @@ module Natural = struct
     ]
 end
 
-module LeftFactored = struct
+module Non_left_recursive = struct
   exception Fail
 
   type token = Token.t [@@deriving compare]

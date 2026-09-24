@@ -8,7 +8,7 @@ module RegexToNfa (N : S with type input = char) = struct
     match r with
     | Empty -> empty
     | Epsilon -> epsilon
-    | Char cs -> one_of (C.to_list cs)
+    | Chars cs -> one_of (Charset.to_list cs)
     | Alt (r1, r2) -> alt (compile r1) (compile r2)
     | Seq (r1, r2) -> seq (compile r1) (compile r2)
     | Kleene r -> kleene (compile r)
@@ -30,9 +30,9 @@ end
 open Lang
 
 module Lexer
-    (Vocabulary : VOCABULARY with type input = char and type spec = C.t rgx) =
+    (Spec : LEXICAL_SPEC with type input = char and type spec = Charset.t regex) =
 struct
-  type token = Vocabulary.token
+  type token = Spec.token
   type action = char list -> token option
 
   module ActionRegistry = Registry.Make (struct
@@ -57,10 +57,10 @@ struct
     let tag = ActionRegistry.register action in
     TaggedNfa.lift (RegexCompiler.compile matcher) tag
 
-  let ( >>| ) = TaggedNfa.alt
+  let ( <|> ) = TaggedNfa.alt
   let determinise = determinise
 
-  type lexing_state = {
+  type lex_state = {
     state : state;
     rest : char list;
     tokens : token list;
@@ -121,12 +121,12 @@ struct
     | [], [] -> List.rev state.tokens
     | _, _ -> lex_run machine (lex_step machine state)
 
-  let ls = List.map (fun (r, a) -> compile r a) Vocabulary.rules
+  let lexers = List.map (fun (r, a) -> compile r a) Spec.rules
 
   let empty_lexer =
     compile Regex.empty (fun _ -> raise (LexFailure "empty lexer"))
 
-  let lexer = List.fold_right ( >>| ) ls empty_lexer |> determinise
+  let lexer = List.fold_right ( <|> ) lexers empty_lexer |> determinise
 
   let lex s =
     let cs = Base.String.to_list s in

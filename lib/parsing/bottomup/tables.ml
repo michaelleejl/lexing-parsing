@@ -17,7 +17,7 @@ module Actions (State : STATE) = struct
   let act item terminal =
     match next item with
     | None ->
-        if is_valid_for item terminal then Some (Reduce (production_of item))
+        if may_reduce_on item terminal then Some (Reduce (production_of item))
         else None
     | Some (T t) -> if t <> terminal then None else Some Shift
     | _ -> None
@@ -62,7 +62,7 @@ module Action (State : STATE) = struct
   let act item terminal =
     match next item with
     | None ->
-        if is_valid_for item terminal then Some (Reduce (production_of item))
+        if may_reduce_on item terminal then Some (Reduce (production_of item))
         else None
     | Some (T t) -> if t <> terminal then None else Some Shift
     | _ -> None

@@ -4,11 +4,11 @@ open Lexparse
 open Lexparse.Mlot
 open Lexparse.Parsing.Analysis
 
-(* Reports on the elaborated grammar, so the augmented production [S' ::= E $]
+(* Reports on the augmented grammar, so the augmented production [S' ::= E $]
    shows up alongside the grammar's own. *)
 module Report (Grammar : GRAMMAR) = struct
-  module Elaborated = TopDown_Elaborate (Grammar)
-  module Bnf = Elaborated.Bnf
+  module Augmented = Topdown_augment (Grammar)
+  module Bnf = Augmented.Bnf
   module A = GrammarAnalysis (Bnf)
   open Views (Bnf)
 
@@ -25,12 +25,12 @@ module Report (Grammar : GRAMMAR) = struct
 
   let productions = production_rules
 
-  (* Lift a symbol of the source grammar into the elaborated one. *)
+  (* Lift a symbol of the source grammar into the augmented one. *)
   let t x : Bnf.sym = Bnf.T x
   let n x : Bnf.sym = Bnf.N (Bnf.Nonterminal.Source x)
 
   let nullable () =
-    A.NTSet.elements A.Nullable.set
+    A.NTSet.elements A.Nullable.nonterminals
     |> List.map nt |> String.concat " " |> printf "nullable: %s\n"
 
   let first () =
@@ -44,7 +44,7 @@ module Report (Grammar : GRAMMAR) = struct
       A.Follow.table
 
   let predict_set lhs (p : Bnf.production) =
-    let first = A.First.syms p.rhs |> A.drop_eps in
+    let first = A.First.syms p.rhs |> A.to_terminals in
     if A.Nullable.syms p.rhs then A.TSet.union first (A.Follow.nonterminal lhs)
     else first
 
@@ -86,7 +86,7 @@ module Report (Grammar : GRAMMAR) = struct
 end
 
 module LL1 = Report (Grammars.LL1)
-module LeftFactored = Report (Grammars.LeftFactored)
+module Non_left_recursive = Report (Grammars.Non_left_recursive)
 
 let%expect_test "ll1: nullable" =
   LL1.nullable ();
@@ -154,12 +154,12 @@ let%expect_test "ll1: is LL(1)" =
   LL1.ll1 ();
   [%expect {| LL(1): yes |}]
 
-let%expect_test "left-factored: nullable" =
-  LeftFactored.nullable ();
+let%expect_test "non-left-recursive: nullable" =
+  Non_left_recursive.nullable ();
   [%expect {| nullable: T' F' G' |}]
 
-let%expect_test "left-factored: first" =
-  LeftFactored.first ();
+let%expect_test "non-left-recursive: first" =
+  Non_left_recursive.first ();
   [%expect
     {|
     first(S'   ) = IDENT NUM TRUE FALSE FUN LPAREN LET
@@ -173,8 +173,8 @@ let%expect_test "left-factored: first" =
     first(S    ) = IDENT NUM TRUE FALSE LPAREN
     |}]
 
-let%expect_test "left-factored: follow" =
-  LeftFactored.follow ();
+let%expect_test "non-left-recursive: follow" =
+  Non_left_recursive.follow ();
   [%expect
     {|
     follow(S'   ) = EOF
@@ -188,8 +188,8 @@ let%expect_test "left-factored: follow" =
     follow(S    ) = IDENT NUM TRUE FALSE LPAREN RPAREN PLUS EQUALS IN EOF
     |}]
 
-let%expect_test "left-factored: predict sets" =
-  LeftFactored.predict ();
+let%expect_test "non-left-recursive: predict sets" =
+  Non_left_recursive.predict ();
   [%expect
     {|
     S'    ::= E EOF                    { IDENT NUM TRUE FALSE FUN LPAREN LET }
@@ -213,14 +213,14 @@ let%expect_test "left-factored: predict sets" =
     S     ::= LPAREN E RPAREN          { LPAREN }
     |}]
 
-let%expect_test "left-factored: is LL(1)" =
-  LeftFactored.ll1 ();
+let%expect_test "non-left-recursive: is LL(1)" =
+  Non_left_recursive.ll1 ();
   [%expect {|
     LL(1): no
       E conflicts on LET
     |}]
 
-module Gram = Grammars.LL1
+module Grammar = Grammars.LL1
 
 let show_first = LL1.show_first
 let show_nullable = LL1.show_nullable
@@ -230,15 +230,15 @@ let%expect_test "first of eps" =
   [%expect {| eps |}]
 
 let%expect_test "first stops at the first non-nullable symbol" =
-  show_first [ LL1.t PLUS; LL1.n Gram.Nonterminal.E ];
+  show_first [ LL1.t PLUS; LL1.n Grammar.Nonterminal.E ];
   [%expect {| PLUS |}]
 
 let%expect_test "first sees through a nullable prefix" =
-  show_first [ LL1.n Gram.Nonterminal.G'; LL1.t EQUALS ];
+  show_first [ LL1.n Grammar.Nonterminal.G'; LL1.t EQUALS ];
   [%expect {| IDENT NUM TRUE FALSE LPAREN EQUALS |}]
 
 let%expect_test "first of an all-nullable sequence keeps eps" =
-  show_first [ LL1.n Gram.Nonterminal.G'; LL1.n Gram.Nonterminal.T' ];
+  show_first [ LL1.n Grammar.Nonterminal.G'; LL1.n Grammar.Nonterminal.T' ];
   [%expect {| IDENT NUM TRUE FALSE LPAREN EQUALS eps |}]
 
 let%expect_test "nullable: empty sequence" =
@@ -246,9 +246,9 @@ let%expect_test "nullable: empty sequence" =
   [%expect {| true |}]
 
 let%expect_test "nullable: all-nullable sequence" =
-  show_nullable [ LL1.n Gram.Nonterminal.G'; LL1.n Gram.Nonterminal.T' ];
+  show_nullable [ LL1.n Grammar.Nonterminal.G'; LL1.n Grammar.Nonterminal.T' ];
   [%expect {| true |}]
 
 let%expect_test "nullable: sequence with a terminal" =
-  show_nullable [ LL1.n Gram.Nonterminal.G'; LL1.t PLUS ];
+  show_nullable [ LL1.n Grammar.Nonterminal.G'; LL1.t PLUS ];
   [%expect {| false |}]

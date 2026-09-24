@@ -1,7 +1,8 @@
 open Test_lexparse_parsing
 open Lexparse.Mlot
-open Lexparse.Parsing.Bottomup.Generators
-open General (Grammars.Natural)
+open Lexparse.Parsing.Topdown.Combinators
+open Token
+open Generalised (Grammars.Non_left_recursive)
 
 let%expect_test "corpus" =
   Parse_cases.run parse;

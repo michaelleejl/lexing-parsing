@@ -4,7 +4,7 @@ module Sym = struct
   type t = S | A | B | Ca | Cb
 
   let compare = compare
-  let to_str = function S -> "S" | A -> "A" | B -> "B" | Ca -> "a" | Cb -> "b"
+  let to_string = function S -> "S" | A -> "A" | B -> "B" | Ca -> "a" | Cb -> "b"
 end
 
 module Tag = struct
@@ -12,7 +12,7 @@ module Tag = struct
 
   let compare = compare
 
-  let to_str = function
+  let to_string = function
     | PushASB -> "S->aSb"
     | PushEps -> "S->eps"
     | ReadA -> "read a"
@@ -78,9 +78,9 @@ let initial machine =
 
 let cfg_str P.Config.{ current_state; stack } =
   sprintf "q%d [%s]" current_state
-    (List.map Sym.to_str stack |> String.concat " ")
+    (List.map Sym.to_string stack |> String.concat " ")
 
-let tags_str tags = List.map Tag.to_str tags |> String.concat ", "
+let tags_str tags = List.map Tag.to_string tags |> String.concat ", "
 
 let advance machine traces tok =
   P.TraceSet.fold

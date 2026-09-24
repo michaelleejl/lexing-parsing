@@ -1,6 +1,6 @@
 open Test_lexparse_parsing
 open Lexparse.Mlot
-open Lexparse.Parsing.Topdown.Descent.General
+open Lexparse.Parsing.Topdown.Descent.Generalised
 
 let%expect_test "corpus" =
   Parse_cases.run parse;

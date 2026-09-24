@@ -9,7 +9,7 @@ module Recogniser = struct
 
   let one_of cs = function
     | [] -> Failure
-    | x :: xs -> if C.mem x cs then Success xs else Failure
+    | x :: xs -> if Charset.mem x cs then Success xs else Failure
 
   let emp _ = Failure
   let eps cs = Success cs
@@ -30,7 +30,7 @@ module Recogniser = struct
     match r with
     | Empty -> emp
     | Epsilon -> eps
-    | Char cs -> one_of cs
+    | Chars cs -> one_of cs
     | Alt (r1, r2) -> alt (interpret r1) (interpret r2)
     | Seq (r1, r2) -> seq (interpret r1) (interpret r2)
     | Kleene r -> kleene (interpret r)
@@ -40,9 +40,9 @@ module Recogniser = struct
 end
 
 module Lexer
-    (Vocabulary : VOCABULARY with type input = char and type spec = C.t rgx) =
+    (Spec : LEXICAL_SPEC with type input = char and type spec = Charset.t regex) =
 struct
-  type token = Vocabulary.token
+  type token = Spec.token
   type action = char list -> token option
   type r = Regex.t
   type matcher_state = { matched : char list; rest : char list }
@@ -55,7 +55,7 @@ struct
   let one_of cs = function
     | [] -> Failure
     | x :: xs ->
-        if Regex.C.mem x cs then Success { matched = [ x ]; rest = xs }
+        if Regex.Charset.mem x cs then Success { matched = [ x ]; rest = xs }
         else Failure
 
   let eps s = Success { matched = []; rest = s }
@@ -93,7 +93,7 @@ struct
     match r with
     | Empty -> emp
     | Epsilon -> eps
-    | Char cs -> one_of cs
+    | Chars cs -> one_of cs
     | Alt (r1, r2) -> alt (interpret' r1) (interpret' r2)
     | Seq (r1, r2) -> seq (interpret' r1) (interpret' r2)
     | Kleene r -> kleene (interpret' r)
@@ -116,7 +116,7 @@ struct
         if List.length s.rest <= List.length s'.rest then Success s
         else Success s'
 
-  let ( >>| ) = alt_l
+  let ( <|> ) = alt_l
 
   let lex_step l state =
     match l state with
@@ -128,9 +128,9 @@ struct
     | { lexed; rest = [] } -> List.rev lexed
     | { lexed; rest } as state -> lex_run l (lex_step l state)
 
-  let ls = List.map (fun (r, a) -> interpret r a) Vocabulary.rules
+  let lexers = List.map (fun (r, a) -> interpret r a) Spec.rules
   let empty_lexer = interpret Regex.empty (fun _ -> raise LexFailure)
-  let lexer = List.fold_right ( >>| ) ls empty_lexer
+  let lexer = List.fold_right ( <|> ) lexers empty_lexer
 
   let lex s =
     let cs = Base.String.to_list s in

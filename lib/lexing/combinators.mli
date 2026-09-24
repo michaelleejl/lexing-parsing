@@ -9,11 +9,11 @@ module Recogniser : sig
   val recognise : t -> string -> bool
 end
 
-module Lexer : (Vocabulary : VOCABULARY
+module Lexer : (Spec : LEXICAL_SPEC
                                with type input = char
-                                and type spec = C.t rgx)
+                                and type spec = Charset.t regex)
   -> sig
-  type token = Vocabulary.token
+  type token = Spec.token
 
   exception LexFailure
 

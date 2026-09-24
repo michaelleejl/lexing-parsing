@@ -1,14 +1,14 @@
-module C : Set.S with type elt = char
+module Charset : Set.S with type elt = char
 
-type 'c rgx =
+type 'c regex =
   | Empty
   | Epsilon
-  | Char of 'c
-  | Alt of 'c rgx * 'c rgx
-  | Seq of 'c rgx * 'c rgx
-  | Kleene of 'c rgx
+  | Chars of 'c
+  | Alt of 'c regex * 'c regex
+  | Seq of 'c regex * 'c regex
+  | Kleene of 'c regex
 
-type t = C.t rgx
+type t = Charset.t regex
 
 val empty : t
 val epsilon : t

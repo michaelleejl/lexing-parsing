@@ -1,6 +1,6 @@
 open Lang
 
-module General (Grammar : GRAMMAR) : sig
+module Generalised (Grammar : GRAMMAR) : sig
   type token = Grammar.token
   type ast = Grammar.ast
 

@@ -2,7 +2,7 @@ open Test_lexparse_parsing
 open Lexparse.Mlot
 open Lexparse.Parsing.Bottomup.Interpreters
 open Token
-open General (Grammars.Natural)
+open Generalised (Grammars.Natural)
 
 let%expect_test "corpus" =
   Parse_cases.run parse;

@@ -1,6 +1,6 @@
 open Lexparse.Lexing.Combinators
 open Lexparse.Mlot
-open Lexer (Vocabulary)
+open Lexer (Lexical_spec)
 
 let%expect_test "corpus" =
   Lex_cases.run lex;

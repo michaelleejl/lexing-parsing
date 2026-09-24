@@ -18,7 +18,7 @@ type t =
   | EOF
 [@@deriving compare]
 
-let to_str t =
+let to_string t =
   match t with
   | IDENT s -> sprintf "IDENT %s" s
   | NUM n -> sprintf "NUM %d" n

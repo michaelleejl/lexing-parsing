@@ -50,7 +50,7 @@ let run lex =
   List.iter
     (fun src ->
       let out =
-        try lex src |> List.map Token.to_str |> String.concat " ; "
+        try lex src |> List.map Token.to_string |> String.concat " ; "
         with e -> describe e
       in
       printf "%-22s %s\n" (sprintf "%S" src) out)
