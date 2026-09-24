@@ -55,11 +55,11 @@ module Make (Input : INPUT) (StackSym : STACK_SYM) (Tag : TAG) = struct
     initial_stack_sym : stack_sym;
   }
 
-  exception StackEmptyException
+  exception Empty_stack
 
   let is_accepting Config.{ stack } = List.is_empty stack
-  let pop = function [] -> raise StackEmptyException | _ :: xs -> xs
-  let peek = function [] -> raise StackEmptyException | x :: _ -> x
+  let pop = function [] -> raise Empty_stack | _ :: xs -> xs
+  let peek = function [] -> raise Empty_stack | x :: _ -> x
 
   let find pda state stack input =
     try
@@ -67,7 +67,7 @@ module Make (Input : INPUT) (StackSym : STACK_SYM) (Tag : TAG) = struct
       Transition.find (input, sym) (pda.next state)
     with
     | Not_found -> TransitionOutputSet.empty
-    | StackEmptyException -> TransitionOutputSet.empty
+    | Empty_stack -> TransitionOutputSet.empty
 
   let rec step pda traces input =
     let f (({ current_state; stack }, tags) : trace) traces =

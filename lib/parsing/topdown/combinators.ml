@@ -1,6 +1,6 @@
 open Lang
 
-exception ParseFail of string
+exception Parse_error of string
 
 module Generalised (Grammar : GRAMMAR) = struct
   module Augmented = Topdown_augment (Grammar)
@@ -11,7 +11,7 @@ module Generalised (Grammar : GRAMMAR) = struct
   type token = Augmented.token
   type ast = Augmented.ast
 
-  let alt p1 p2 toks = try p1 toks with ParseFail _ -> p2 toks
+  let alt p1 p2 toks = try p1 toks with Parse_error _ -> p2 toks
 
   let seq p1 p2 toks =
     let d1, toks' = p1 toks in
@@ -20,7 +20,7 @@ module Generalised (Grammar : GRAMMAR) = struct
 
   let ( <|> ) = alt
   let ( <&> ) = seq
-  let empty _ = raise (ParseFail "empty")
+  let empty _ = raise (Parse_error "empty")
   let eps toks = ([], toks)
 
   module TerminalMap = Map.Make (Bnf.Terminal)
@@ -42,9 +42,9 @@ module Generalised (Grammar : GRAMMAR) = struct
       | tok :: toks' ->
           let t' = token_to_terminal tok in
           if t = t' then (read r tok, toks')
-          else raise (ParseFail "terminal mismatch")
-      | [] -> raise (ParseFail "expected a terminal")
-    with Fail -> raise (ParseFail "terminal")
+          else raise (Parse_error "terminal mismatch")
+      | [] -> raise (Parse_error "expected a terminal")
+    with Fail -> raise (Parse_error "terminal")
 
   let nonterminal_to_parser nt fs toks =
     (List.nth fs (NonterminalMap.find nt nonterminal_map)) toks
@@ -77,7 +77,7 @@ module Generalised (Grammar : GRAMMAR) = struct
   let parse ts =
     match start_parser (ts @ [ eof ]) with
     | e, [] -> finish e
-    | _ -> raise (ParseFail "fail")
+    | _ -> raise (Parse_error "fail")
 end
 
 module LL1 (Grammar : GRAMMAR) = struct
@@ -102,11 +102,11 @@ module LL1 (Grammar : GRAMMAR) = struct
             let term = token_to_terminal tok in
             if TSet.mem term g1 then p1 toks
             else if TSet.mem term g2 then p2 toks
-            else raise (ParseFail "unexpected token")
-        | _ -> raise (ParseFail "bad parse")
+            else raise (Parse_error "unexpected token")
+        | _ -> raise (Parse_error "bad parse")
       in
       { prediction = TSet.union g1 g2; parser }
-    else raise (ParseFail "grammar not in LL1")
+    else raise (Parse_error "grammar not in LL1")
 
   let seq p1 p2 toks =
     let d1, toks' = p1 toks in
@@ -137,9 +137,9 @@ module LL1 (Grammar : GRAMMAR) = struct
       | tok :: toks' ->
           let t' = token_to_terminal tok in
           if t = t' then (read r tok, toks')
-          else raise (ParseFail "terminal mismatch")
-      | [] -> raise (ParseFail "expected a terminal")
-    with Fail -> raise (ParseFail "terminal")
+          else raise (Parse_error "terminal mismatch")
+      | [] -> raise (Parse_error "expected a terminal")
+    with Fail -> raise (Parse_error "terminal")
 
   let nonterminal_to_parser nt fs toks =
     (List.nth fs (NonterminalMap.find nt nonterminal_map)) toks
@@ -180,5 +180,5 @@ module LL1 (Grammar : GRAMMAR) = struct
   let parse ts =
     match start_parser (ts @ [ eof ]) with
     | e, [] -> finish e
-    | _ -> raise (ParseFail "fail")
+    | _ -> raise (Parse_error "fail")
 end

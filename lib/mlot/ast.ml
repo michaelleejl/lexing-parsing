@@ -10,7 +10,7 @@ and node =
   | Fun of fparam * node
   | App of node * node
   | Let of fparam * node * node
-  | LetRec of fparam * node * node
+  | Let_rec of fparam * node * node
   | Plus of node * node
   | Equals of node * node
 [@@deriving compare]
@@ -23,6 +23,6 @@ let rec to_string t =
   | Fun (x, e) -> sprintf "Fun(%s, %s)" x (to_string e)
   | App (e1, e2) -> sprintf "App(%s, %s)" (to_string e1) (to_string e2)
   | Let (x, e1, e2) -> sprintf "Let(%s, %s, %s)" x (to_string e1) (to_string e2)
-  | LetRec (x, e1, e2) -> sprintf "LetRec(%s, %s, %s)" x (to_string e1) (to_string e2)
+  | Let_rec (x, e1, e2) -> sprintf "Let_rec(%s, %s, %s)" x (to_string e1) (to_string e2)
   | Plus (e1, e2) -> sprintf "Plus(%s, %s)" (to_string e1) (to_string e2)
   | Equals (e1, e2) -> sprintf "Equals(%s, %s)" (to_string e1) (to_string e2)

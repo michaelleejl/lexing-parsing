@@ -51,7 +51,7 @@ module Action (State : STATE) = struct
   module ItemSet = State.ItemSet
 
   exception Conflict
-  exception NoAction
+  exception No_action
 
   type act = Shift | Reduce of production
 
@@ -89,7 +89,7 @@ module Action (State : STATE) = struct
 
   let find state terminal =
     match Hashtbl.find table (state, terminal) with
-    | None -> raise NoAction
+    | None -> raise No_action
     | Some a -> a
 end
 

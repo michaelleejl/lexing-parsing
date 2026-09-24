@@ -1,30 +1,30 @@
 open Lang
 open Regex
 
-type 'a outcome = Success of 'a | Failure
+type 'a outcome = Matched of 'a | Unmatched
 
 module Recogniser = struct
   type r = Regex.t
   type t = char list -> char list outcome
 
   let one_of cs = function
-    | [] -> Failure
-    | x :: xs -> if Charset.mem x cs then Success xs else Failure
+    | [] -> Unmatched
+    | x :: xs -> if Charset.mem x cs then Matched xs else Unmatched
 
-  let emp _ = Failure
-  let eps cs = Success cs
-  let seq r1 r2 cs = match r1 cs with Failure -> Failure | Success cs -> r2 cs
+  let emp _ = Unmatched
+  let eps cs = Matched cs
+  let seq r1 r2 cs = match r1 cs with Unmatched -> Unmatched | Matched cs -> r2 cs
 
   let alt r1 r2 cs =
     match (r1 cs, r2 cs) with
-    | Failure, Failure -> Failure
-    | Success xs, Failure -> Success xs
-    | Failure, Success ys -> Success ys
-    | Success xs, Success ys ->
-        if List.length xs <= List.length ys then Success xs else Success ys
+    | Unmatched, Unmatched -> Unmatched
+    | Matched xs, Unmatched -> Matched xs
+    | Unmatched, Matched ys -> Matched ys
+    | Matched xs, Matched ys ->
+        if List.length xs <= List.length ys then Matched xs else Matched ys
 
   let rec kleene r cs =
-    match r cs with Failure -> Success cs | Success xs -> kleene r xs
+    match r cs with Unmatched -> Matched cs | Matched xs -> kleene r xs
 
   let rec interpret r =
     match r with
@@ -36,7 +36,7 @@ module Recogniser = struct
     | Kleene r -> kleene (interpret r)
 
   let recognise r s =
-    match r (Base.String.to_list s) with Success [] -> true | _ -> false
+    match r (Base.String.to_list s) with Matched [] -> true | _ -> false
 end
 
 module Lexer
@@ -50,44 +50,44 @@ struct
   type lex_state = { lexed : token list; rest : char list }
   type t = lex_state -> lex_state outcome
 
-  exception LexFailure
+  exception Lex_error
 
   let one_of cs = function
-    | [] -> Failure
+    | [] -> Unmatched
     | x :: xs ->
-        if Regex.Charset.mem x cs then Success { matched = [ x ]; rest = xs }
-        else Failure
+        if Regex.Charset.mem x cs then Matched { matched = [ x ]; rest = xs }
+        else Unmatched
 
-  let eps s = Success { matched = []; rest = s }
-  let emp _ = Failure
+  let eps s = Matched { matched = []; rest = s }
+  let emp _ = Unmatched
 
   let seq m1 m2 cs =
     match m1 cs with
-    | Failure -> Failure
-    | Success { matched = matched1; rest } -> (
+    | Unmatched -> Unmatched
+    | Matched { matched = matched1; rest } -> (
         match m2 rest with
-        | Failure -> Failure
-        | Success { matched = matched2; rest } ->
-            Success { matched = matched1 @ matched2; rest })
+        | Unmatched -> Unmatched
+        | Matched { matched = matched2; rest } ->
+            Matched { matched = matched1 @ matched2; rest })
 
   let alt (m1 : s) m2 cs =
     match (m1 cs, m2 cs) with
-    | Failure, Failure -> Failure
-    | Success s, Failure -> Success s
-    | Failure, Success s' -> Success s'
-    | Success s, Success s' ->
-        if List.length s.rest <= List.length s'.rest then Success s
-        else Success s'
+    | Unmatched, Unmatched -> Unmatched
+    | Matched s, Unmatched -> Matched s
+    | Unmatched, Matched s' -> Matched s'
+    | Matched s, Matched s' ->
+        if List.length s.rest <= List.length s'.rest then Matched s
+        else Matched s'
 
   let kleene m cs =
     let rec kleene' m cs =
       match m cs with
-      | Failure -> { matched = []; rest = cs }
-      | Success { matched; rest } ->
+      | Unmatched -> { matched = []; rest = cs }
+      | Matched { matched; rest } ->
           let { matched = matched'; rest = rest' } = kleene' m rest in
           { matched = matched @ matched'; rest = rest' }
     in
-    Success (kleene' m cs)
+    Matched (kleene' m cs)
 
   let rec interpret' r =
     match r with
@@ -101,27 +101,27 @@ struct
   let interpret r to_token { lexed; rest } =
     let m = interpret' r in
     match m rest with
-    | Failure -> Failure
-    | Success { matched; rest } -> (
+    | Unmatched -> Unmatched
+    | Matched { matched; rest } -> (
         match to_token matched with
-        | None -> Success { lexed; rest }
-        | Some t -> Success { lexed = t :: lexed; rest })
+        | None -> Matched { lexed; rest }
+        | Some t -> Matched { lexed = t :: lexed; rest })
 
   let alt_l l1 l2 s =
     match (l1 s, l2 s) with
-    | Failure, Failure -> Failure
-    | Success s, Failure -> Success s
-    | Failure, Success s' -> Success s'
-    | Success s, Success s' ->
-        if List.length s.rest <= List.length s'.rest then Success s
-        else Success s'
+    | Unmatched, Unmatched -> Unmatched
+    | Matched s, Unmatched -> Matched s
+    | Unmatched, Matched s' -> Matched s'
+    | Matched s, Matched s' ->
+        if List.length s.rest <= List.length s'.rest then Matched s
+        else Matched s'
 
   let ( <|> ) = alt_l
 
   let lex_step l state =
     match l state with
-    | Success { lexed; rest } -> { lexed; rest }
-    | Failure -> raise LexFailure
+    | Matched { lexed; rest } -> { lexed; rest }
+    | Unmatched -> raise Lex_error
 
   let rec lex_run l state =
     match state with
@@ -129,7 +129,7 @@ struct
     | { lexed; rest } as state -> lex_run l (lex_step l state)
 
   let lexers = List.map (fun (r, a) -> interpret r a) Spec.rules
-  let empty_lexer = interpret Regex.empty (fun _ -> raise LexFailure)
+  let empty_lexer = interpret Regex.empty (fun _ -> raise Lex_error)
   let lexer = List.fold_right ( <|> ) lexers empty_lexer
 
   let lex s =

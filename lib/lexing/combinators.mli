@@ -15,7 +15,7 @@ module Lexer : (Spec : LEXICAL_SPEC
   -> sig
   type token = Spec.token
 
-  exception LexFailure
+  exception Lex_error
 
   val lex : string -> token list
 end

@@ -2,7 +2,7 @@ open Lang
 open Fixpoint
 open Ppx_compare_lib.Builtin
 
-exception CyclicGrammar
+exception Cyclic_grammar
 
 module GrammarAnalysis (Bnf : AUGMENTED_BNF) = struct
   open Bnf
@@ -158,7 +158,7 @@ module GrammarAnalysis (Bnf : AUGMENTED_BNF) = struct
     ;;
 
     NTMap.iter
-      (fun nt set -> if NTSet.mem nt set then raise CyclicGrammar)
+      (fun nt set -> if NTSet.mem nt set then raise Cyclic_grammar)
       table
   end
 end

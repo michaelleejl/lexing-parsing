@@ -1,7 +1,7 @@
 open Mlot.Token
 open Mlot.Ast
 
-exception ParseFail of string
+exception Parse_error of string
 
 module Generalised = struct
   type token = Mlot.Token.t
@@ -16,14 +16,14 @@ module Generalised = struct
         | arg, IN :: toks' ->
             let body, toks'' = e toks' in
             (Let (x, arg, body), toks'')
-        | _ -> raise (ParseFail "LET")
+        | _ -> raise (Parse_error "LET")
         end
     | LET :: REC :: IDENT x :: EQUALS :: toks ->
         begin match e toks with
         | arg, IN :: toks' ->
             let body, toks'' = e toks' in
-            (LetRec (x, arg, body), toks'')
-        | _ -> raise (ParseFail "LETREC")
+            (Let_rec (x, arg, body), toks'')
+        | _ -> raise (Parse_error "LETREC")
         end
     | toks -> t toks
 
@@ -56,7 +56,7 @@ module Generalised = struct
     | term', toks' ->
         let terms, toks'' = g' toks' in
         (term' :: terms, toks'')
-    | exception ParseFail _ -> ([], toks)
+    | exception Parse_error _ -> ([], toks)
 
   and g toks =
     let term, toks' = s toks in
@@ -71,12 +71,12 @@ module Generalised = struct
     | LPAREN :: toks ->
         begin match e toks with
         | term, RPAREN :: toks' -> (term, toks')
-        | _ -> raise (ParseFail "S LPAREN")
+        | _ -> raise (Parse_error "S LPAREN")
         end
-    | _ -> raise (ParseFail "S")
+    | _ -> raise (Parse_error "S")
 
   let parse ts =
-    match e ts with expr, [] -> expr | _ -> raise (ParseFail "failed")
+    match e ts with expr, [] -> expr | _ -> raise (Parse_error "failed")
 end
 
 module LL1 = struct
@@ -84,7 +84,7 @@ module LL1 = struct
   type ast = Mlot.Ast.node
 
   let pop = function
-    | [] -> raise (ParseFail "cannot pop from empty list")
+    | [] -> raise (Parse_error "cannot pop from empty list")
     | _ :: xs -> xs
 
   let peek = function [] -> None | x :: _ -> Some x
@@ -92,11 +92,11 @@ module LL1 = struct
   (* consume a terminal the prediction has already committed to *)
   let expect tok = function
     | t :: rest when t = tok -> rest
-    | _ -> raise (ParseFail ("expected " ^ Mlot.Token.to_string tok))
+    | _ -> raise (Parse_error ("expected " ^ Mlot.Token.to_string tok))
 
   let expect_ident = function
     | IDENT x :: rest -> (x, rest)
-    | _ -> raise (ParseFail "expected an identifier")
+    | _ -> raise (Parse_error "expected an identifier")
 
   let rec e toks =
     match peek toks with
@@ -125,8 +125,8 @@ module LL1 = struct
         let arg, toks = e toks in
         let toks = expect IN toks in
         let body, toks = e toks in
-        (LetRec (x, arg, body), toks)
-    | _ -> raise (ParseFail "E'")
+        (Let_rec (x, arg, body), toks)
+    | _ -> raise (Parse_error "E'")
 
   and t' toks =
     match peek toks with
@@ -180,8 +180,8 @@ module LL1 = struct
         let term, toks = e toks in
         let toks = expect RPAREN toks in
         (term, toks)
-    | _ -> raise (ParseFail "S")
+    | _ -> raise (Parse_error "S")
 
   let parse ts =
-    match e ts with expr, [] -> expr | _ -> raise (ParseFail "failed")
+    match e ts with expr, [] -> expr | _ -> raise (Parse_error "failed")
 end

@@ -48,7 +48,7 @@ struct
   type s = TaggedNfa.t
   type t = TaggedDfa.t
 
-  exception LexFailure of string
+  exception Lex_error of string
 
   open TaggedDfa
   module RegexCompiler = RegexToNfa (TaggedNfa.Nfa)
@@ -96,13 +96,13 @@ struct
 
   and rollback machine state rest tokens buffer last_accepting =
     match last_accepting with
-    | None -> raise (LexFailure "no last accepting state")
+    | None -> raise (Lex_error "no last accepting state")
     | Some (k, qs) -> advance machine tokens rest buffer k qs
 
   and advance machine tokens rest buffer k qs =
     let tag = emit_tag machine qs in
     match tag with
-    | None -> raise (LexFailure "tag is empty")
+    | None -> raise (Lex_error "tag is empty")
     | Some tag -> (
         let chars = List.drop k buffer in
         let buffer = List.take k buffer in
@@ -124,7 +124,7 @@ struct
   let lexers = List.map (fun (r, a) -> compile r a) Spec.rules
 
   let empty_lexer =
-    compile Regex.empty (fun _ -> raise (LexFailure "empty lexer"))
+    compile Regex.empty (fun _ -> raise (Lex_error "empty lexer"))
 
   let lexer = List.fold_right ( <|> ) lexers empty_lexer |> determinise
 

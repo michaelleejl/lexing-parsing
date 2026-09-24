@@ -20,7 +20,7 @@ let verdict f =
   try
     f ();
     "acyclic"
-  with CyclicGrammar -> "cyclic"
+  with Cyclic_grammar -> "cyclic"
 
 let case name expected f =
   let actual = verdict f in

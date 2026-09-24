@@ -5,7 +5,7 @@ open Tables
 open Fixpoint
 open Ppx_compare_lib.Builtin
 
-exception ParseFail of string
+exception Parse_error of string
 
 module Generalised (Grammar : GRAMMAR) = struct
   module Augmented = Bottomup_augment (Grammar)
@@ -35,15 +35,15 @@ module Generalised (Grammar : GRAMMAR) = struct
   [@@deriving compare]
 
   module ParseState = struct
-    type t = Partial of hypothesis | Complete of ast [@@deriving compare]
+    type t = Partial of hypothesis | Accepted of ast [@@deriving compare]
   end
 
-  type parse_state = ParseState.t = Partial of hypothesis | Complete of ast
+  type parse_state = ParseState.t = Partial of hypothesis | Accepted of ast
 
   module ParseStates = Set.Make (ParseState)
 
   let accept args =
-    Complete (finish (build (builder_of_production productions.start) args))
+    Accepted (finish (build (builder_of_production productions.start) args))
 
   let shift { data_stack; state_stack; tokens } =
     match tokens with
@@ -76,11 +76,11 @@ module Generalised (Grammar : GRAMMAR) = struct
   let interpret = function Shift -> shift | Reduce p -> reduce p
 
   let evolve = function
-    | Complete a -> ParseStates.singleton (Complete a)
+    | Accepted a -> ParseStates.singleton (Accepted a)
     | Partial ({ tokens; state_stack; data_stack } as hyp) -> (
         match (tokens, state_stack) with
-        | [], _ -> raise (ParseFail "unexpected eof")
-        | _, [] -> raise (ParseFail "unexpected empty state stack")
+        | [], _ -> raise (Parse_error "unexpected eof")
+        | _, [] -> raise (Parse_error "unexpected empty state stack")
         | tok :: _, state :: state_stack ->
             let accept =
               if tok = eof && is_accepting state then
@@ -109,12 +109,12 @@ module Generalised (Grammar : GRAMMAR) = struct
            })
     in
     fix ~eq:ParseStates.equal parse_step initial
-    |> ParseStates.filter (function Complete _ -> true | Partial _ -> false)
+    |> ParseStates.filter (function Accepted _ -> true | Partial _ -> false)
     |> ParseStates.to_list
     |> function
-    | [] -> raise (ParseFail "no valid hypotheses")
-    | [ Complete a ] -> a
-    | _ -> raise (ParseFail "ambiguous ast, multiple parses")
+    | [] -> raise (Parse_error "no valid hypotheses")
+    | [ Accepted a ] -> a
+    | _ -> raise (Parse_error "ambiguous ast, multiple parses")
 end
 
 module SLR1 (Grammar : GRAMMAR) = struct
@@ -143,11 +143,11 @@ module SLR1 (Grammar : GRAMMAR) = struct
     tokens : token list 
   }
 
-  type parse_state = Partial of config | Complete of ast 
+  type parse_state = Partial of config | Accepted of ast 
 
 
   let accept args =
-    Complete (finish (build (builder_of_production productions.start) args))
+    Accepted (finish (build (builder_of_production productions.start) args))
 
   let shift { data_stack; state_stack; tokens } =
     match tokens with
@@ -160,9 +160,9 @@ module SLR1 (Grammar : GRAMMAR) = struct
           let state = List.hd state_stack in
           let state_stack = next state sym :: state_stack in
           Partial { tokens; data_stack; state_stack }
-        with Failure _ -> raise (ParseFail "malformed state stack")
+        with Failure _ -> raise (Parse_error "malformed state stack")
         end
-    | _ -> raise (ParseFail "malformed token stack")
+    | _ -> raise (Parse_error "malformed token stack")
 
   let reduce prod { data_stack; state_stack; tokens } =
     try
@@ -175,19 +175,19 @@ module SLR1 (Grammar : GRAMMAR) = struct
       let state = List.hd state_stack in
       let state_stack = Goto.find state nonterminal :: state_stack in
       Partial { state_stack; data_stack; tokens }
-    with Failure _ -> raise (ParseFail "malformed parse state")
+    with Failure _ -> raise (Parse_error "malformed parse state")
 
   let interpret = function Shift -> shift | Reduce p -> reduce p
 
   let step ({ tokens; state_stack; data_stack } as s) =
     match (tokens, state_stack) with
-    | [], _ -> raise (ParseFail "unexpected eof")
-    | _, [] -> raise (ParseFail "unexpected empty state stack")
+    | [], _ -> raise (Parse_error "unexpected eof")
+    | _, [] -> raise (Parse_error "unexpected empty state stack")
     | tok :: _, state :: state_stack ->
         if tok = eof && is_accepting state then
             match data_stack with 
             | [d] -> accept data_stack
-            | _ -> raise (ParseFail "malformed data stack")
+            | _ -> raise (Parse_error "malformed data stack")
           else 
         let terminal = token_to_terminal tok in
         let action = Action.find state terminal in
@@ -195,7 +195,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
 
 
   let rec run = function
-    | Complete a -> a 
+    | Accepted a -> a 
     | Partial s -> run (step s)
 
   let parse tokens = 
@@ -234,11 +234,11 @@ module LR1 (Grammar : GRAMMAR) = struct
     tokens : token list 
   }
 
-  type parse_state = Partial of config | Complete of ast 
+  type parse_state = Partial of config | Accepted of ast 
 
 
   let accept args =
-    Complete (finish (build (builder_of_production productions.start) args))
+    Accepted (finish (build (builder_of_production productions.start) args))
 
   let shift { data_stack; state_stack; tokens } =
     match tokens with
@@ -251,9 +251,9 @@ module LR1 (Grammar : GRAMMAR) = struct
           let state = List.hd state_stack in
           let state_stack = next state sym :: state_stack in
           Partial { tokens; data_stack; state_stack }
-        with Failure _ -> raise (ParseFail "malformed state stack")
+        with Failure _ -> raise (Parse_error "malformed state stack")
         end
-    | _ -> raise (ParseFail "malformed token stack")
+    | _ -> raise (Parse_error "malformed token stack")
 
   let reduce prod { data_stack; state_stack; tokens } =
     try
@@ -266,19 +266,19 @@ module LR1 (Grammar : GRAMMAR) = struct
       let state = List.hd state_stack in
       let state_stack = Goto.find state nonterminal :: state_stack in
       Partial { state_stack; data_stack; tokens }
-    with Failure _ -> raise (ParseFail "malformed parse state")
+    with Failure _ -> raise (Parse_error "malformed parse state")
 
   let interpret = function Shift -> shift | Reduce p -> reduce p
 
   let step ({ tokens; state_stack; data_stack } as s) =
     match (tokens, state_stack) with
-    | [], _ -> raise (ParseFail "unexpected eof")
-    | _, [] -> raise (ParseFail "unexpected empty state stack")
+    | [], _ -> raise (Parse_error "unexpected eof")
+    | _, [] -> raise (Parse_error "unexpected empty state stack")
     | tok :: _, state :: state_stack ->
         if tok = eof && is_accepting state then
             match data_stack with 
             | [d] -> accept data_stack
-            | _ -> raise (ParseFail "malformed data stack")
+            | _ -> raise (Parse_error "malformed data stack")
           else 
         let terminal = token_to_terminal tok in
         let action = Action.find state terminal in
@@ -286,7 +286,7 @@ module LR1 (Grammar : GRAMMAR) = struct
 
 
   let rec run = function
-    | Complete a -> a 
+    | Accepted a -> a 
     | Partial s -> run (step s)
 
   let parse tokens = 

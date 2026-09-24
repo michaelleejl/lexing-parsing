@@ -13,7 +13,7 @@ module Lexer
     (Spec : LEXICAL_SPEC with type input = char and type spec = Charset.t regex) : sig
   type token = Spec.token
 
-  exception LexFailure of string
+  exception Lex_error of string
 
   val lex : string -> token list
 end

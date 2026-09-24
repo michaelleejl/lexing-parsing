@@ -42,13 +42,13 @@ let%expect_test "LR(1) parses what SLR(1) sees as a conflict" =
     id             x                                          x
     * id           Deref(x)                                   Deref(x)
     * * id         Deref(Deref(x))                            Deref(Deref(x))
-    id = id        <ParseError("shift reduce conflict")>      Assign(x, y)
-    * id = id      <ParseError("shift reduce conflict")>      Assign(Deref(x), y)
-    id = * id      <ParseError("shift reduce conflict")>      Assign(x, Deref(y))
-    <empty>        <ParseError("no actions")>                 <ParseError("no actions")>
-    id id          <ParseError("no actions")>                 <ParseError("no actions")>
-    = id           <ParseError("no actions")>                 <ParseError("no actions")>
-    id =           <ParseError("shift reduce conflict")>      <ParseError("no actions")>
-    *              <ParseError("no actions")>                 <ParseError("no actions")>
-    id = id = id   <ParseError("shift reduce conflict")>      <ParseError("no actions")>
+    id = id        <Parse_error("shift reduce conflict")>     Assign(x, y)
+    * id = id      <Parse_error("shift reduce conflict")>     Assign(Deref(x), y)
+    id = * id      <Parse_error("shift reduce conflict")>     Assign(x, Deref(y))
+    <empty>        <Parse_error("no actions")>                <Parse_error("no actions")>
+    id id          <Parse_error("no actions")>                <Parse_error("no actions")>
+    = id           <Parse_error("no actions")>                <Parse_error("no actions")>
+    id =           <Parse_error("shift reduce conflict")>     <Parse_error("no actions")>
+    *              <Parse_error("no actions")>                <Parse_error("no actions")>
+    id = id = id   <Parse_error("shift reduce conflict")>     <Parse_error("no actions")>
     |}]

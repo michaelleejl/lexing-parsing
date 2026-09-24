@@ -30,7 +30,7 @@ let%expect_test "corpus" =
     (fun x -> x) 1                   App(Fun(x, x), 1)
     let x = 1 in x + 2               Let(x, 1, Plus(x, 2))
     let x = 1 in let y = 2 in x + y  Let(x, 1, Let(y, 2, Plus(x, y)))
-    let rec f = fun x -> f x in f 1  LetRec(f, Fun(x, App(f, x)), App(f, 1))
+    let rec f = fun x -> f x in f 1  Let_rec(f, Fun(x, App(f, x)), App(f, 1))
     let x = fun y -> y in x 1        Let(x, Fun(y, y), App(x, 1))
     (let x = 1 in x) + 2             Plus(Let(x, 1, x), 2)
     fun x -> let y = x in y          Fun(x, Let(y, x, y))

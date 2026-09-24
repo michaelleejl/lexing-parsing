@@ -5,7 +5,7 @@ open Effect
 open Effect.Deep
 open Ppx_compare_lib.Builtin
 
-exception ParseFail of string
+exception Parse_error of string
 
 module Generalised (Grammar : GRAMMAR) = struct
   module Augmented = Bottomup_augment (Grammar)
@@ -21,8 +21,6 @@ module Generalised (Grammar : GRAMMAR) = struct
   open Item
   module ItemSet = Set.Make (Item)
 
-  exception ParseError of string
-
   let closure items =
     Fixpoint.fix ~eq:ItemSet.equal
       (fun its ->
@@ -34,7 +32,7 @@ module Generalised (Grammar : GRAMMAR) = struct
   exception Accepted of ast
 
   type parse_state = { items : ItemSet.t; datum : data; tokens : token list }
-  type act = Shift | Reduce of production | Nothing
+  type act = Shift | Reduce of production | No_action
 
   type reduction = {
     production : production;
@@ -43,7 +41,7 @@ module Generalised (Grammar : GRAMMAR) = struct
     tokens : token list;
   }
 
-  type _ Effect.t += ReduceResult : reduction -> unit Effect.t
+  type _ Effect.t += Reduce_result : reduction -> unit Effect.t
 
   let shift_sym_on_items items sym =
     ItemSet.fold
@@ -60,7 +58,7 @@ module Generalised (Grammar : GRAMMAR) = struct
         let datum = Augmented.read (reader_of_terminal terminal) token in
         let new_items = shift_sym_on_items items (T terminal) in
         { tokens; datum; items = new_items }
-    | _ -> raise (ParseError "token mismatch")
+    | _ -> raise (Parse_error "token mismatch")
 
   let accept production args =
     raise (Accepted (finish (build (builder_of_production production) args)))
@@ -70,18 +68,18 @@ module Generalised (Grammar : GRAMMAR) = struct
     | None -> Reduce (production_of item)
     | Some (T t) ->
         begin match tokens with
-        | [] -> Nothing
+        | [] -> No_action
         | tok :: _ ->
             let t' = token_to_terminal tok in
-            if t <> t' then Nothing else Shift
+            if t <> t' then No_action else Shift
         end
-    | _ -> Nothing
+    | _ -> No_action
 
   let actions state tokens =
     ItemSet.fold
       (fun item (reduces, shifts) ->
         match action item tokens with
-        | Nothing -> (reduces, shifts)
+        | No_action -> (reduces, shifts)
         | Shift -> (reduces, true)
         | Reduce p -> (p :: reduces, shifts))
       state ([], false)
@@ -102,7 +100,7 @@ module Generalised (Grammar : GRAMMAR) = struct
         | _ -> fallback ()
     and collect result =
       perform
-        (ReduceResult
+        (Reduce_result
            { result with dot = result.dot - 1; args = datum :: result.args })
     and goto production args tokens fallback =
       next
@@ -116,10 +114,10 @@ module Generalised (Grammar : GRAMMAR) = struct
       try
         match parser state with
         | v -> v
-        | effect ReduceResult result, k -> handle_reduce result k
-      with ParseError _ -> fallback ()
+        | effect Reduce_result result, k -> handle_reduce result k
+      with Parse_error _ -> fallback ()
     in
-    if ItemSet.is_empty state then raise (ParseError "empty state")
+    if ItemSet.is_empty state then raise (Parse_error "empty state")
     else
       let rec try_act rs s =
         match rs with
@@ -127,8 +125,8 @@ module Generalised (Grammar : GRAMMAR) = struct
             if s then
               match parser (shift { parse_state with items = state }) with
               | v -> v
-              | effect ReduceResult result, k -> handle_reduce result k
-            else raise (ParseError "no more actions")
+              | effect Reduce_result result, k -> handle_reduce result k
+            else raise (Parse_error "no more actions")
         | production :: rs ->
             let fallback () = try_act rs s in
             if List.is_empty production.rhs then
@@ -157,7 +155,7 @@ module Generalised (Grammar : GRAMMAR) = struct
           }
       with
       | v -> v
-      | effect ReduceResult _, _ -> raise (ParseError "stack underflow")
+      | effect Reduce_result _, _ -> raise (Parse_error "stack underflow")
     with Accepted ast -> ast
 end
 
@@ -175,8 +173,6 @@ module SLR1 (Grammar : GRAMMAR) = struct
   open Item
   module ItemSet = Set.Make (Item)
 
-  exception ParseError of string
-
   let closure items =
     Fixpoint.fix ~eq:ItemSet.equal
       (fun its ->
@@ -186,7 +182,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
       items
 
   type parse_state = { items : ItemSet.t; datum : data; tokens : token list }
-  type act = Shift | Reduce of production | Nothing
+  type act = Shift | Reduce of production | No_action
 
   type reduction = {
     production : production;
@@ -195,7 +191,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
     tokens : token list;
   }
 
-  type outcome = Pending of reduction | Accepted of ast
+  type outcome = Partial of reduction | Accepted of ast
 
   let shift_sym_on_items items sym =
     ItemSet.fold
@@ -212,28 +208,28 @@ module SLR1 (Grammar : GRAMMAR) = struct
         let datum = Augmented.read (reader_of_terminal terminal) token in
         let new_items = shift_sym_on_items items (T terminal) in
         { tokens; datum; items = new_items }
-    | _ -> raise (ParseError "token mismatch")
+    | _ -> raise (Parse_error "token mismatch")
 
   let accept production args =
     Accepted (finish (build (builder_of_production production) args))
 
   let action item tokens =
     match tokens with
-    | [] -> raise (ParseError "unexpected end of input")
+    | [] -> raise (Parse_error "unexpected end of input")
     | tok :: _ -> (
         let t' = token_to_terminal tok in
         match next item with
         | None ->
             if may_reduce_on item t' then Reduce (production_of item)
-            else Nothing
-        | Some (T t) -> if t <> t' then Nothing else Shift
-        | _ -> Nothing)
+            else No_action
+        | Some (T t) -> if t <> t' then No_action else Shift
+        | _ -> No_action)
 
   let actions state tokens =
     ItemSet.fold
       (fun item (reduces, shifts) ->
         match action item tokens with
-        | Nothing -> (reduces, shifts)
+        | No_action -> (reduces, shifts)
         | Shift -> (reduces, true)
         | Reduce p -> (p :: reduces, shifts))
       state ([], false)
@@ -242,15 +238,15 @@ module SLR1 (Grammar : GRAMMAR) = struct
     let state = closure items in
     let rec handle_reduce = function
       | Accepted e -> Accepted e
-      | Pending ({ production; dot; args; tokens } as result) -> (
+      | Partial ({ production; dot; args; tokens } as result) -> (
           if dot > 0 then collect result
           else if production.lhs <> start then goto production args tokens
           else
             match tokens with
             | [ t ] when t = eof -> accept production args
-            | _ -> raise (ParseError "trailing input"))
+            | _ -> raise (Parse_error "trailing input"))
     and collect result =
-      Pending { result with dot = result.dot - 1; args = datum :: result.args }
+      Partial { result with dot = result.dot - 1; args = datum :: result.args }
     and goto production args tokens =
       next
         {
@@ -259,11 +255,11 @@ module SLR1 (Grammar : GRAMMAR) = struct
           tokens;
         }
     and next state = handle_reduce (parser state) in
-    if ItemSet.is_empty state then raise (ParseError "empty state")
+    if ItemSet.is_empty state then raise (Parse_error "empty state")
     else
       let act rs s =
         match (rs, s) with
-        | [], false -> raise (ParseError "no actions")
+        | [], false -> raise (Parse_error "no actions")
         | [], true ->
             handle_reduce (parser (shift { parse_state with items = state }))
         | [ production ], false ->
@@ -276,8 +272,8 @@ module SLR1 (Grammar : GRAMMAR) = struct
                   args = [];
                   tokens;
                 }
-        | _ :: _, true -> raise (ParseError "shift reduce conflict")
-        | _ :: _, false -> raise (ParseError "reduce reduce conflict")
+        | _ :: _, true -> raise (Parse_error "shift reduce conflict")
+        | _ :: _, false -> raise (Parse_error "reduce reduce conflict")
       in
       let reduces, shifts = actions state tokens in
       act reduces shifts
@@ -292,7 +288,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
         }
     with
     | Accepted ast -> ast
-    | _ -> raise (ParseFail "no valid parse")
+    | _ -> raise (Parse_error "no valid parse")
 end
 
 module LR1 (Grammar : GRAMMAR) = struct
@@ -309,8 +305,6 @@ module LR1 (Grammar : GRAMMAR) = struct
   open Item
   module ItemSet = Set.Make (Item)
 
-  exception ParseError of string
-
   let closure items =
     Fixpoint.fix ~eq:ItemSet.equal
       (fun its ->
@@ -320,7 +314,7 @@ module LR1 (Grammar : GRAMMAR) = struct
       items
 
   type parse_state = { items : ItemSet.t; datum : data; tokens : token list }
-  type act = Shift | Reduce of production | Nothing
+  type act = Shift | Reduce of production | No_action
 
   type reduction = {
     production : production;
@@ -329,7 +323,7 @@ module LR1 (Grammar : GRAMMAR) = struct
     tokens : token list;
   }
 
-  type outcome = Pending of reduction | Accepted of ast
+  type outcome = Partial of reduction | Accepted of ast
 
   let shift_sym_on_items items sym =
     ItemSet.fold
@@ -346,28 +340,28 @@ module LR1 (Grammar : GRAMMAR) = struct
         let datum = Augmented.read (reader_of_terminal terminal) token in
         let new_items = shift_sym_on_items items (T terminal) in
         { tokens; datum; items = new_items }
-    | _ -> raise (ParseError "token mismatch")
+    | _ -> raise (Parse_error "token mismatch")
 
   let accept production args =
     Accepted (finish (build (builder_of_production production) args))
 
   let action item tokens =
     match tokens with
-    | [] -> raise (ParseError "unexpected end of input")
+    | [] -> raise (Parse_error "unexpected end of input")
     | tok :: _ -> (
         let t' = token_to_terminal tok in
         match next item with
         | None ->
             if may_reduce_on item t' then Reduce (production_of item)
-            else Nothing
-        | Some (T t) -> if t <> t' then Nothing else Shift
-        | _ -> Nothing)
+            else No_action
+        | Some (T t) -> if t <> t' then No_action else Shift
+        | _ -> No_action)
 
   let actions state tokens =
     ItemSet.fold
       (fun item (reduces, shifts) ->
         match action item tokens with
-        | Nothing -> (reduces, shifts)
+        | No_action -> (reduces, shifts)
         | Shift -> (reduces, true)
         | Reduce p -> (p :: reduces, shifts))
       state ([], false)
@@ -376,15 +370,15 @@ module LR1 (Grammar : GRAMMAR) = struct
     let state = closure items in
     let rec handle_reduce = function
       | Accepted e -> Accepted e
-      | Pending ({ production; dot; args; tokens } as result) -> (
+      | Partial ({ production; dot; args; tokens } as result) -> (
           if dot > 0 then collect result
           else if production.lhs <> start then goto production args tokens
           else
             match tokens with
             | [ t ] when t = eof -> accept production args
-            | _ -> raise (ParseError "trailing input"))
+            | _ -> raise (Parse_error "trailing input"))
     and collect result =
-      Pending { result with dot = result.dot - 1; args = datum :: result.args }
+      Partial { result with dot = result.dot - 1; args = datum :: result.args }
     and goto production args tokens =
       next
         {
@@ -393,11 +387,11 @@ module LR1 (Grammar : GRAMMAR) = struct
           tokens;
         }
     and next state = handle_reduce (parser state) in
-    if ItemSet.is_empty state then raise (ParseError "empty state")
+    if ItemSet.is_empty state then raise (Parse_error "empty state")
     else
       let act rs s =
         match (rs, s) with
-        | [], false -> raise (ParseError "no actions")
+        | [], false -> raise (Parse_error "no actions")
         | [], true ->
             handle_reduce (parser (shift { parse_state with items = state }))
         | [ production ], false ->
@@ -410,8 +404,8 @@ module LR1 (Grammar : GRAMMAR) = struct
                   args = [];
                   tokens;
                 }
-        | _ :: _, true -> raise (ParseError "shift reduce conflict")
-        | _ :: _, false -> raise (ParseError "reduce reduce conflict")
+        | _ :: _, true -> raise (Parse_error "shift reduce conflict")
+        | _ :: _, false -> raise (Parse_error "reduce reduce conflict")
       in
       let reduces, shifts = actions state tokens in
       act reduces shifts
@@ -426,5 +420,5 @@ module LR1 (Grammar : GRAMMAR) = struct
         }
     with
     | Accepted ast -> ast
-    | _ -> raise (ParseFail "no valid parse")
+    | _ -> raise (Parse_error "no valid parse")
 end

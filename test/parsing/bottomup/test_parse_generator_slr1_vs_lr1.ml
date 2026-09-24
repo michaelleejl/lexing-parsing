@@ -63,10 +63,10 @@ let%expect_test "LR(1) parses the pointer grammar" =
     id = id        Assign(x, y)
     * id = id      Assign(Deref(x), y)
     id = * id      Assign(x, Deref(y))
-    <empty>        <NoAction>
-    id id          <NoAction>
-    = id           <NoAction>
-    id =           <NoAction>
-    *              <NoAction>
-    id = id = id   <NoAction>
+    <empty>        <No_action>
+    id id          <No_action>
+    = id           <No_action>
+    id =           <No_action>
+    *              <No_action>
+    id = id = id   <No_action>
     |}]

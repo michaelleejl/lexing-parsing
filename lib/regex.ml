@@ -48,7 +48,7 @@ let any_ = range_ 0 255
 let any = Chars any_
 
 module Parse = struct
-  exception Failure
+  exception Error
 
   module Bracket = struct
     type elt = Char of char | Range of char * char
@@ -66,7 +66,7 @@ module Parse = struct
 
     let parse_element cs =
       match cs with
-      | [] -> raise Failure
+      | [] -> raise Error
       | ']' :: s -> (None, s)
       | c :: ('-' :: ']' :: _ as s) -> (Some (Char c), s)
       | c :: '-' :: c' :: s -> (Some (Range (c, c')), s)
@@ -74,7 +74,7 @@ module Parse = struct
 
     let parse_initial cs =
       match cs with
-      | [] -> raise Failure
+      | [] -> raise Error
       | c :: ('-' :: ']' :: _ as s) -> (Some (Char c), s)
       | c :: '-' :: c' :: s -> (Some (Range (c, c')), s)
       | c :: s -> (Some (Char c), s)
@@ -112,7 +112,7 @@ module Parse = struct
     | _ :: _ ->
         let elements, rest = Bracket.parse s in
         (Bracketed { negated = false; elements }, rest)
-    | [] -> raise Failure
+    | [] -> raise Error
 
   let rec parse_atom s =
     match s with
@@ -128,7 +128,7 @@ module Parse = struct
     | '\\' :: '+' :: cs -> Some (Chars (Charset.singleton '+'), cs)
     | '\\' :: '(' :: cs -> Some (Chars (Charset.singleton '('), cs)
     | '\\' :: ')' :: cs -> Some (Chars (Charset.singleton ')'), cs)
-    | '\\' :: c :: cs -> raise Failure
+    | '\\' :: c :: cs -> raise Error
     | c :: cs -> Some (Chars (Charset.singleton c), cs)
 
   and parse_suffixed s =
@@ -153,7 +153,7 @@ module Parse = struct
         (Alt (r, r'), rest')
     | r, rest -> (r, rest)
 
-  let parse cs = match parse_alt cs with r, [] -> r | r, _ -> raise Failure
+  let parse cs = match parse_alt cs with r, [] -> r | r, _ -> raise Error
 
   let rec to_alt = function
     | [] -> []

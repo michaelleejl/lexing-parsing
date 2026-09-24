@@ -136,12 +136,12 @@ module Augment_Data (Data : sig
   type t [@@deriving compare]
 end) =
 struct
-  type t = StartSym | SourceDatum of Data.t [@@deriving compare]
+  type t = Start_sym | Source_datum of Data.t [@@deriving compare]
 
-  exception UnwrapError
+  exception Unwrap_error
 
-  let unwrap = function StartSym -> raise UnwrapError | SourceDatum d -> d
-  let start = StartSym
+  let unwrap = function Start_sym -> raise Unwrap_error | Source_datum d -> d
+  let start = Start_sym
 end
 
 module Topdown_augment (Grammar : GRAMMAR) :
@@ -217,7 +217,7 @@ struct
 
   let build b ds =
     match b with
-    | Source b -> SourceDatum (Grammar.build b (List.map Data.unwrap ds))
+    | Source b -> Source_datum (Grammar.build b (List.map Data.unwrap ds))
     | Start -> ( match ds with [ d; _ ] -> d | _ -> assert false)
 
   let builders =
@@ -247,7 +247,7 @@ struct
     | Some r -> r
     | None -> raise (Unconsumable_terminal (Bnf.string_of_terminal t))
 
-  let read reader token = SourceDatum (Grammar.read reader token)
+  let read reader token = Source_datum (Grammar.read reader token)
   let finish d = Grammar.finish (unwrap d)
   let token_to_terminal = Grammar.token_to_terminal
   let eof = Grammar.eof
@@ -326,7 +326,7 @@ struct
 
   let build b ds =
     match b with
-    | Source b -> SourceDatum (Grammar.build b (List.map Data.unwrap ds))
+    | Source b -> Source_datum (Grammar.build b (List.map Data.unwrap ds))
     | Start -> ( match ds with [ d ] -> d | _ -> assert false)
 
   let builders =
@@ -356,7 +356,7 @@ struct
     | Some r -> r
     | None -> raise (Unconsumable_terminal (Bnf.string_of_terminal t))
 
-  let read reader token = SourceDatum (Grammar.read reader token)
+  let read reader token = Source_datum (Grammar.read reader token)
   let finish d = Grammar.finish (unwrap d)
   let token_to_terminal = Grammar.token_to_terminal
   let eof = Grammar.eof
