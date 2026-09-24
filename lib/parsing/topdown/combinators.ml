@@ -23,8 +23,6 @@ module Generalised (Grammar : GRAMMAR) = struct
   let empty _ = raise (Parse_error "empty")
   let eps toks = ([], toks)
 
-  module Terminal_map = Map.Make (Bnf.Terminal)
-  module Nonterminal_map = Map.Make (Bnf.Nonterminal)
   open Views (Bnf)
 
   let nonterminal_map =
@@ -118,8 +116,6 @@ module Ll1 (Grammar : GRAMMAR) = struct
   let empty = { prediction = Terminal_set.empty; parser = (fun _ -> assert false) }
   let eps toks = ([], toks)
 
-  module Terminal_map = Map.Make (Bnf.Terminal)
-  module Nonterminal_map = Map.Make (Bnf.Nonterminal)
   open Views (Bnf)
 
   let nonterminal_map =
