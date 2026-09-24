@@ -9,15 +9,19 @@ open Lexparse.Parsing.Analysis
 module Report (Grammar : GRAMMAR) = struct
   module Augmented = Topdown_augment (Grammar)
   module Bnf = Augmented.Bnf
-  module A = GrammarAnalysis (Bnf)
+  module A = Grammar_analysis (Bnf)
   open Views (Bnf)
 
   let nt = Bnf.Nonterminal.to_string
   let term = Bnf.Terminal.to_string
   let sym = Bnf.Sym.to_string
-  let te = function A.TE.Eps -> "eps" | A.TE.Term t -> term t
-  let tset s = A.TSet.elements s |> List.map term |> String.concat " "
-  let teset s = A.TESet.elements s |> List.map te |> String.concat " "
+
+  let te = function
+    | A.Term_or_eps.Eps -> "eps"
+    | A.Term_or_eps.Term t -> term t
+
+  let tset s = A.Terminal_set.elements s |> List.map term |> String.concat " "
+  let teset s = A.Term_or_eps_set.elements s |> List.map te |> String.concat " "
 
   let rhs_str = function
     | [] -> "eps"
@@ -30,22 +34,23 @@ module Report (Grammar : GRAMMAR) = struct
   let n x : Bnf.sym = Bnf.N (Bnf.Nonterminal.Source x)
 
   let nullable () =
-    A.NTSet.elements A.Nullable.nonterminals
+    A.Nonterminal_set.elements A.Nullable.nonterminals
     |> List.map nt |> String.concat " " |> printf "nullable: %s\n"
 
   let first () =
-    A.NTMap.iter
+    A.Nonterminal_map.iter
       (fun n ts -> printf "first(%-5s) = %s\n" (nt n) (teset ts))
       A.First.table
 
   let follow () =
-    A.NTMap.iter
+    A.Nonterminal_map.iter
       (fun n ts -> printf "follow(%-5s) = %s\n" (nt n) (tset ts))
       A.Follow.table
 
   let predict_set lhs (p : Bnf.production) =
     let first = A.First.syms p.rhs |> A.to_terminals in
-    if A.Nullable.syms p.rhs then A.TSet.union first (A.Follow.nonterminal lhs)
+    if A.Nullable.syms p.rhs then
+      A.Terminal_set.union first (A.Follow.nonterminal lhs)
     else first
 
   let predict () =
@@ -64,8 +69,8 @@ module Report (Grammar : GRAMMAR) = struct
       | s :: rest ->
           List.filter_map
             (fun s' ->
-              let common = A.TSet.inter s s' in
-              if A.TSet.is_empty common then None else Some (lhs, common))
+              let common = A.Terminal_set.inter s s' in
+              if A.Terminal_set.is_empty common then None else Some (lhs, common))
             rest
           @ pairwise rest
     in
@@ -85,15 +90,15 @@ module Report (Grammar : GRAMMAR) = struct
           cs
 end
 
-module LL1 = Report (Grammars.LL1)
+module Ll1 = Report (Grammars.Ll1)
 module Non_left_recursive = Report (Grammars.Non_left_recursive)
 
 let%expect_test "ll1: nullable" =
-  LL1.nullable ();
+  Ll1.nullable ();
   [%expect {| nullable: T' F' G' |}]
 
 let%expect_test "ll1: first" =
-  LL1.first ();
+  Ll1.first ();
   [%expect
     {|
     first(S'   ) = IDENT NUM TRUE FALSE FUN LPAREN LET
@@ -109,7 +114,7 @@ let%expect_test "ll1: first" =
     |}]
 
 let%expect_test "ll1: follow" =
-  LL1.follow ();
+  Ll1.follow ();
   [%expect
     {|
     follow(S'   ) = EOF
@@ -125,7 +130,7 @@ let%expect_test "ll1: follow" =
     |}]
 
 let%expect_test "ll1: predict sets" =
-  LL1.predict ();
+  Ll1.predict ();
   [%expect
     {|
     S'    ::= E EOF                    { IDENT NUM TRUE FALSE FUN LPAREN LET }
@@ -151,7 +156,7 @@ let%expect_test "ll1: predict sets" =
     |}]
 
 let%expect_test "ll1: is LL(1)" =
-  LL1.ll1 ();
+  Ll1.ll1 ();
   [%expect {| LL(1): yes |}]
 
 let%expect_test "non-left-recursive: nullable" =
@@ -220,25 +225,25 @@ let%expect_test "non-left-recursive: is LL(1)" =
       E conflicts on LET
     |}]
 
-module Grammar = Grammars.LL1
+module Grammar = Grammars.Ll1
 
-let show_first = LL1.show_first
-let show_nullable = LL1.show_nullable
+let show_first = Ll1.show_first
+let show_nullable = Ll1.show_nullable
 
 let%expect_test "first of eps" =
   show_first [];
   [%expect {| eps |}]
 
 let%expect_test "first stops at the first non-nullable symbol" =
-  show_first [ LL1.t PLUS; LL1.n Grammar.Nonterminal.E ];
+  show_first [ Ll1.t PLUS; Ll1.n Grammar.Nonterminal.E ];
   [%expect {| PLUS |}]
 
 let%expect_test "first sees through a nullable prefix" =
-  show_first [ LL1.n Grammar.Nonterminal.G'; LL1.t EQUALS ];
+  show_first [ Ll1.n Grammar.Nonterminal.G'; Ll1.t EQUALS ];
   [%expect {| IDENT NUM TRUE FALSE LPAREN EQUALS |}]
 
 let%expect_test "first of an all-nullable sequence keeps eps" =
-  show_first [ LL1.n Grammar.Nonterminal.G'; LL1.n Grammar.Nonterminal.T' ];
+  show_first [ Ll1.n Grammar.Nonterminal.G'; Ll1.n Grammar.Nonterminal.T' ];
   [%expect {| IDENT NUM TRUE FALSE LPAREN EQUALS eps |}]
 
 let%expect_test "nullable: empty sequence" =
@@ -246,9 +251,9 @@ let%expect_test "nullable: empty sequence" =
   [%expect {| true |}]
 
 let%expect_test "nullable: all-nullable sequence" =
-  show_nullable [ LL1.n Grammar.Nonterminal.G'; LL1.n Grammar.Nonterminal.T' ];
+  show_nullable [ Ll1.n Grammar.Nonterminal.G'; Ll1.n Grammar.Nonterminal.T' ];
   [%expect {| true |}]
 
 let%expect_test "nullable: sequence with a terminal" =
-  show_nullable [ LL1.n Grammar.Nonterminal.G'; LL1.t PLUS ];
+  show_nullable [ Ll1.n Grammar.Nonterminal.G'; Ll1.t PLUS ];
   [%expect {| false |}]

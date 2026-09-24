@@ -6,7 +6,7 @@ module Actions (State : STATE) = struct
   module Item = State.Item
   open Item
   open Views (Item)
-  module ItemSet = State.ItemSet
+  module Item_set = State.Item_set
 
   type act = Shift | Reduce of production
 
@@ -25,7 +25,7 @@ module Actions (State : STATE) = struct
   let action state terminal =
     let items = items_of state in
     let acts =
-      ItemSet.fold
+      Item_set.fold
         (fun item acc ->
           match (act item terminal, acc) with
           | None, acc -> acc
@@ -48,7 +48,7 @@ module Action (State : STATE) = struct
   module Item = State.Item
   open Item
   open Views (Item)
-  module ItemSet = State.ItemSet
+  module Item_set = State.Item_set
 
   exception Conflict
   exception No_action
@@ -70,7 +70,7 @@ module Action (State : STATE) = struct
   let action state terminal =
     let items = items_of state in
     let act_opt =
-      ItemSet.fold
+      Item_set.fold
         (fun item acc ->
           match (act item terminal, acc) with
           | None, acc -> acc
@@ -98,7 +98,7 @@ module Goto (State : STATE) = struct
   module Item = State.Item
   open Item
   open Views (Item)
-  module ItemSet = State.ItemSet
+  module Item_set = State.Item_set
 
   type goto_table = (State.t * nonterminal, State.t) Hashtbl.t
 

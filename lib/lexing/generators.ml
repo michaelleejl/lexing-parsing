@@ -1,7 +1,7 @@
 open Regex
 open Automata.Nfa
 
-module RegexToNfa (N : S with type input = char) = struct
+module Regex_to_nfa (N : S with type input = char) = struct
   open N
 
   let rec compile r =
@@ -21,9 +21,9 @@ module Recogniser = struct
   type r = Regex.t
   type t = Dfa.t
 
-  module RegexCompiler = RegexToNfa (Nfa)
+  module Regex_compiler = Regex_to_nfa (Nfa)
 
-  let compile r = RegexCompiler.compile r |> Dfa.determinise
+  let compile r = Regex_compiler.compile r |> Dfa.determinise
   let recognise dfa s = Base.String.to_list s |> Dfa.accept dfa
 end
 
@@ -35,29 +35,29 @@ struct
   type token = Spec.token
   type action = char list -> token option
 
-  module ActionRegistry = Registry.Make (struct
+  module Action_registry = Registry.Make (struct
     type elt = action
   end)
 
-  module TaggedDfa = Automata.Tdfa.Make (Char) (ActionRegistry.Id)
-  module TaggedNfa = TaggedDfa.TaggedNfa
-  module Nfa = TaggedNfa.Nfa
+  module Tagged_dfa = Automata.Tdfa.Make (Char) (Action_registry.Id)
+  module Tagged_nfa = Tagged_dfa.Tagged_nfa
+  module Nfa = Tagged_nfa.Nfa
 
-  type tag = ActionRegistry.Id.t
+  type tag = Action_registry.Id.t
   type r = Regex.t
-  type s = TaggedNfa.t
-  type t = TaggedDfa.t
+  type s = Tagged_nfa.t
+  type t = Tagged_dfa.t
 
   exception Lex_error of string
 
-  open TaggedDfa
-  module RegexCompiler = RegexToNfa (TaggedNfa.Nfa)
+  open Tagged_dfa
+  module Regex_compiler = Regex_to_nfa (Tagged_nfa.Nfa)
 
   let compile matcher action =
-    let tag = ActionRegistry.register action in
-    TaggedNfa.lift (RegexCompiler.compile matcher) tag
+    let tag = Action_registry.register action in
+    Tagged_nfa.lift (Regex_compiler.compile matcher) tag
 
-  let ( <|> ) = TaggedNfa.alt
+  let ( <|> ) = Tagged_nfa.alt
   let determinise = determinise
 
   type lex_state = {
@@ -106,7 +106,7 @@ struct
     | Some tag -> (
         let chars = List.drop k buffer in
         let buffer = List.take k buffer in
-        let action = ActionRegistry.get tag (List.rev chars) in
+        let action = Action_registry.get tag (List.rev chars) in
         let last_accepting = None in
         let state = initialise machine in
         let rest = List.rev buffer @ rest in

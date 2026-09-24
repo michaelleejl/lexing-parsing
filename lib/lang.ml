@@ -122,7 +122,7 @@ exception Duplicate_production
 exception Duplicate_consumption
 exception Unconsumable_terminal of string
 
-module Augment_Nonterminals (Nonterminal : sig
+module Augment_nonterminals (Nonterminal : sig
   type t [@@deriving compare, to_string]
 end) =
 struct
@@ -132,7 +132,7 @@ struct
   [@@deriving compare, to_string]
 end
 
-module Augment_Data (Data : sig
+module Augment_data (Data : sig
   type t [@@deriving compare]
 end) =
 struct
@@ -150,14 +150,14 @@ module Topdown_augment (Grammar : GRAMMAR) :
      and type ast = Grammar.ast
      and type reader = Grammar.reader
      and module Bnf.Terminal = Grammar.Terminal
-     and module Bnf.Nonterminal = Augment_Nonterminals(Grammar.Nonterminal) =
+     and module Bnf.Nonterminal = Augment_nonterminals(Grammar.Nonterminal) =
 struct
   exception Fail = Grammar.Fail
 
   type token = Grammar.token [@@deriving compare]
   type ast = Grammar.ast [@@deriving compare]
 
-  module Data = Augment_Data (Grammar.Data)
+  module Data = Augment_data (Grammar.Data)
   open Data
 
   type data = Data.t [@@deriving compare]
@@ -168,7 +168,7 @@ struct
 
     type terminal = Terminal.t [@@deriving compare, to_string]
 
-    module Nonterminal = Augment_Nonterminals (Grammar.Nonterminal)
+    module Nonterminal = Augment_nonterminals (Grammar.Nonterminal)
 
     type nonterminal = Nonterminal.t [@@deriving compare, to_string]
 
@@ -205,13 +205,13 @@ struct
     let productions = { start; rest = List.map pure Grammar.productions }
   end
 
-  module PMap = Map.Make (struct
+  module Production_map = Map.Make (struct
     type t = Bnf.production
 
     let compare = Bnf.compare_production
   end)
 
-  module TMap = Map.Make (Grammar.Terminal)
+  module Terminal_map = Map.Make (Grammar.Terminal)
 
   type builder = Source of Grammar.builder | Start
 
@@ -223,27 +223,27 @@ struct
   let builders =
     List.fold_left
       (fun map (p : Grammar.production) ->
-        PMap.update (Bnf.pure p)
+        Production_map.update (Bnf.pure p)
           (function
             | None -> Some (Source p.builder)
             | Some _ -> raise Duplicate_production)
           map)
-      PMap.empty Grammar.productions
-    |> PMap.add Bnf.start Start
+      Production_map.empty Grammar.productions
+    |> Production_map.add Bnf.start Start
 
   let readers =
     List.fold_left
       (fun map (r : Grammar.consumption) ->
-        TMap.update r.lhs
+        Terminal_map.update r.lhs
           (function
             | None -> Some r.reader | Some _ -> raise Duplicate_consumption)
           map)
-      TMap.empty Grammar.consumptions
+      Terminal_map.empty Grammar.consumptions
 
-  let builder_of_production p = PMap.find p builders
+  let builder_of_production p = Production_map.find p builders
 
   let reader_of_terminal t =
-    match TMap.find_opt t readers with
+    match Terminal_map.find_opt t readers with
     | Some r -> r
     | None -> raise (Unconsumable_terminal (Bnf.string_of_terminal t))
 
@@ -259,14 +259,14 @@ module Bottomup_augment (Grammar : GRAMMAR) :
      and type ast = Grammar.ast
      and type reader = Grammar.reader
      and module Bnf.Terminal = Grammar.Terminal
-     and module Bnf.Nonterminal = Augment_Nonterminals(Grammar.Nonterminal) =
+     and module Bnf.Nonterminal = Augment_nonterminals(Grammar.Nonterminal) =
 struct
   exception Fail = Grammar.Fail
 
   type token = Grammar.token [@@deriving compare]
   type ast = Grammar.ast [@@deriving compare]
 
-  module Data = Augment_Data (Grammar.Data)
+  module Data = Augment_data (Grammar.Data)
   open Data
 
   type data = Data.t [@@deriving compare]
@@ -277,7 +277,7 @@ struct
 
     type terminal = Terminal.t [@@deriving compare, to_string]
 
-    module Nonterminal = Augment_Nonterminals (Grammar.Nonterminal)
+    module Nonterminal = Augment_nonterminals (Grammar.Nonterminal)
 
     type nonterminal = Nonterminal.t [@@deriving compare, to_string]
 
@@ -314,13 +314,13 @@ struct
     let productions = { start; rest = List.map pure Grammar.productions }
   end
 
-  module PMap = Map.Make (struct
+  module Production_map = Map.Make (struct
     type t = Bnf.production
 
     let compare = Bnf.compare_production
   end)
 
-  module TMap = Map.Make (Grammar.Terminal)
+  module Terminal_map = Map.Make (Grammar.Terminal)
 
   type builder = Source of Grammar.builder | Start
 
@@ -332,27 +332,27 @@ struct
   let builders =
     List.fold_left
       (fun map (p : Grammar.production) ->
-        PMap.update (Bnf.pure p)
+        Production_map.update (Bnf.pure p)
           (function
             | None -> Some (Source p.builder)
             | Some _ -> raise Duplicate_production)
           map)
-      PMap.empty Grammar.productions
-    |> PMap.add Bnf.start Start
+      Production_map.empty Grammar.productions
+    |> Production_map.add Bnf.start Start
 
   let readers =
     List.fold_left
       (fun map (r : Grammar.consumption) ->
-        TMap.update r.lhs
+        Terminal_map.update r.lhs
           (function
             | None -> Some r.reader | Some _ -> raise Duplicate_consumption)
           map)
-      TMap.empty Grammar.consumptions
+      Terminal_map.empty Grammar.consumptions
 
-  let builder_of_production p = PMap.find p builders
+  let builder_of_production p = Production_map.find p builders
 
   let reader_of_terminal t =
-    match TMap.find_opt t readers with
+    match Terminal_map.find_opt t readers with
     | Some r -> r
     | None -> raise (Unconsumable_terminal (Bnf.string_of_terminal t))
 
@@ -364,8 +364,8 @@ end
 
 module Views (Bnf : AUGMENTED_BNF) = struct
   open Bnf
-  module NTMap = Map.Make (Nonterminal)
-  module TSet = Set.Make (Terminal)
+  module Nonterminal_map = Map.Make (Nonterminal)
+  module Terminal_set = Set.Make (Terminal)
 
   let all_productions = productions.start :: productions.rest
   let start = productions.start.lhs
@@ -373,24 +373,24 @@ module Views (Bnf : AUGMENTED_BNF) = struct
   let productions_by_lhs =
     List.fold_right
       (fun (p : production) map ->
-        NTMap.update p.lhs
+        Nonterminal_map.update p.lhs
           (function None -> Some [ p ] | Some ps -> Some (p :: ps))
           map)
-      all_productions NTMap.empty
+      all_productions Nonterminal_map.empty
 
-  let productions_of_nonterminal n = NTMap.find n productions_by_lhs
-  let production_rules = NTMap.bindings productions_by_lhs
-  let nonterminals = NTMap.bindings productions_by_lhs |> List.map fst
+  let productions_of_nonterminal n = Nonterminal_map.find n productions_by_lhs
+  let production_rules = Nonterminal_map.bindings productions_by_lhs
+  let nonterminals = Nonterminal_map.bindings productions_by_lhs |> List.map fst
 
   let terminals =
     List.fold_left
       (fun acc (p : production) ->
         List.fold_left
-          (fun acc -> function T t -> TSet.add t acc | N _ -> acc)
+          (fun acc -> function T t -> Terminal_set.add t acc | N _ -> acc)
           acc p.rhs)
-      (TSet.singleton eof_terminal)
+      (Terminal_set.singleton eof_terminal)
       all_productions
-    |> TSet.elements
+    |> Terminal_set.elements
 
   let symbols =
     List.map (fun x -> N x) nonterminals @ List.map (fun x -> T x) terminals

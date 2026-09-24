@@ -79,7 +79,7 @@ module Generalised = struct
     match e ts with expr, [] -> expr | _ -> raise (Parse_error "failed")
 end
 
-module LL1 = struct
+module Ll1 = struct
   type token = Mlot.Token.t
   type ast = Mlot.Ast.node
 

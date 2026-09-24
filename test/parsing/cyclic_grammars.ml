@@ -1,7 +1,7 @@
 open Ppx_compare_lib.Builtin
 
 (* Small hand-built grammars for exercising the cycle check in
-   [Parsing.Analysis.GrammarAnalysis.Cycles].
+   [Parsing.Analysis.Grammar_analysis.Cycles].
 
    A grammar is *cyclic* when some nonterminal derives itself and nothing
    else: [A =>+ A]. That is strictly narrower than left recursion, and it is
@@ -142,7 +142,7 @@ module Left_recursive = Make (struct
 end)
 
 (* S ::= A B ,  B ::= eps | S ,  A ::= NUM
-   The shape of [G' ::= S G'] in Grammars.LL1: a non-nullable head followed by
+   The shape of [G' ::= S G'] in Grammars.Ll1: a non-nullable head followed by
    a nullable tail that refers back. Reaching S again requires A to vanish,
    and it cannot, so this is acyclic. *)
 module Nullable_tail = Make (struct

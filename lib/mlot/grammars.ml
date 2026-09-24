@@ -596,7 +596,7 @@ module Non_left_recursive = struct
     ]
 end
 
-module LL1 = struct
+module Ll1 = struct
   exception Fail
 
   type token = Token.t [@@deriving compare]

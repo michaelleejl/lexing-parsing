@@ -8,19 +8,19 @@ module Sym = struct
 end
 
 module Tag = struct
-  type t = PushASB | PushEps | ReadA | ReadB | SToA | SToB | AToCa | BToCa
+  type t = Push_asb | Push_eps | Read_a | Read_b | S_to_a | S_to_b | A_to_ca | B_to_ca
 
   let compare = compare
 
   let to_string = function
-    | PushASB -> "S->aSb"
-    | PushEps -> "S->eps"
-    | ReadA -> "read a"
-    | ReadB -> "read b"
-    | SToA -> "S->A"
-    | SToB -> "S->B"
-    | AToCa -> "A->a"
-    | BToCa -> "B->a"
+    | Push_asb -> "S->aSb"
+    | Push_eps -> "S->eps"
+    | Read_a -> "read a"
+    | Read_b -> "read b"
+    | S_to_a -> "S->A"
+    | S_to_b -> "S->B"
+    | A_to_ca -> "A->a"
+    | B_to_ca -> "B->a"
 end
 
 module P = Lexparse.Automata.Tpda.Make (Char) (Sym) (Tag)
@@ -29,18 +29,18 @@ let transitions rules =
   List.fold_left
     (fun m (key, out) ->
       let existing =
-        match P.Transition.find_opt key m with
+        match P.Transition_map.find_opt key m with
         | Some s -> s
-        | None -> P.TransitionOutputSet.empty
+        | None -> P.Transition_output_set.empty
       in
-      P.Transition.add key (P.TransitionOutputSet.add out existing) m)
-    P.Transition.empty rules
+      P.Transition_map.add key (P.Transition_output_set.add out existing) m)
+    P.Transition_map.empty rules
 
 let pda rules start =
   let ts = transitions rules in
   P.
     {
-      states = P.State.singleton 0;
+      states = P.State_set.singleton 0;
       next = (fun _ -> ts);
       initial_state = 0;
       initial_stack_sym = start;
@@ -49,26 +49,26 @@ let pda rules start =
 let anbn =
   pda
     [
-      ((None, Sym.S), (0, [ Sym.Ca; Sym.S; Sym.Cb ], Tag.PushASB));
-      ((None, Sym.S), (0, [], Tag.PushEps));
-      ((Some 'a', Sym.Ca), (0, [], Tag.ReadA));
-      ((Some 'b', Sym.Cb), (0, [], Tag.ReadB));
+      ((None, Sym.S), (0, [ Sym.Ca; Sym.S; Sym.Cb ], Tag.Push_asb));
+      ((None, Sym.S), (0, [], Tag.Push_eps));
+      ((Some 'a', Sym.Ca), (0, [], Tag.Read_a));
+      ((Some 'b', Sym.Cb), (0, [], Tag.Read_b));
     ]
     Sym.S
 
 let ambiguous =
   pda
     [
-      ((None, Sym.S), (0, [ Sym.A ], Tag.SToA));
-      ((None, Sym.S), (0, [ Sym.B ], Tag.SToB));
-      ((None, Sym.A), (0, [ Sym.Ca ], Tag.AToCa));
-      ((None, Sym.B), (0, [ Sym.Ca ], Tag.BToCa));
-      ((Some 'a', Sym.Ca), (0, [], Tag.ReadA));
+      ((None, Sym.S), (0, [ Sym.A ], Tag.S_to_a));
+      ((None, Sym.S), (0, [ Sym.B ], Tag.S_to_b));
+      ((None, Sym.A), (0, [ Sym.Ca ], Tag.A_to_ca));
+      ((None, Sym.B), (0, [ Sym.Ca ], Tag.B_to_ca));
+      ((Some 'a', Sym.Ca), (0, [], Tag.Read_a));
     ]
     Sym.S
 
 let initial machine =
-  P.TraceSet.singleton
+  P.Trace_set.singleton
     ( P.Config.
         {
           current_state = machine.P.initial_state;
@@ -83,13 +83,13 @@ let cfg_str P.Config.{ current_state; stack } =
 let tags_str tags = List.map Tag.to_string tags |> String.concat ", "
 
 let advance machine traces tok =
-  P.TraceSet.fold
+  P.Trace_set.fold
     (fun (cfg, tags) acc ->
-      P.TraceSet.fold
-        (fun (cfg', tags') acc -> P.TraceSet.add (cfg', tags @ tags') acc)
-        (P.consume machine (P.TraceSet.singleton (cfg, [])) tok)
+      P.Trace_set.fold
+        (fun (cfg', tags') acc -> P.Trace_set.add (cfg', tags @ tags') acc)
+        (P.consume machine (P.Trace_set.singleton (cfg, [])) tok)
         acc)
-    traces P.TraceSet.empty
+    traces P.Trace_set.empty
 
 let run machine s =
   let cs = List.init (String.length s) (String.get s) in
@@ -97,13 +97,13 @@ let run machine s =
   |> P.epsilon_closure machine
 
 let accepting traces =
-  P.TraceSet.filter (fun (cfg, _) -> P.is_accepting cfg) traces
+  P.Trace_set.filter (fun (cfg, _) -> P.is_accepting cfg) traces
 
 let%expect_test "a^n b^n: which strings are accepted" =
   List.iter
     (fun s ->
       printf "%-8s %b\n" (sprintf "%S" s)
-        (run anbn s |> accepting |> P.TraceSet.is_empty |> not))
+        (run anbn s |> accepting |> P.Trace_set.is_empty |> not))
     [ ""; "ab"; "aabb"; "aaabbb"; "a"; "b"; "ba"; "abb"; "aab"; "abab" ];
   [%expect
     {|
@@ -121,7 +121,7 @@ let%expect_test "a^n b^n: which strings are accepted" =
 
 let%expect_test "epsilon closure expands the top nonterminal" =
   P.epsilon_closure anbn (initial anbn)
-  |> P.TraceSet.elements
+  |> P.Trace_set.elements
   |> List.iter (fun (cfg, tags) ->
       printf "%-12s %s\n" (cfg_str cfg) (tags_str tags));
   [%expect {|
@@ -131,20 +131,20 @@ let%expect_test "epsilon closure expands the top nonterminal" =
     |}]
 
 let%expect_test "the tags of an accepting run spell out the derivation" =
-  run anbn "aabb" |> accepting |> P.TraceSet.elements
+  run anbn "aabb" |> accepting |> P.Trace_set.elements
   |> List.iter (fun (cfg, tags) ->
       printf "%-6s %s\n" (cfg_str cfg) (tags_str tags));
   [%expect {| q0 []  S->aSb, read a, S->aSb, read a, S->eps, read b, read b |}]
 
 let%expect_test "a rejected string is left stuck with symbols on the stack" =
   let traces = run anbn "aab" in
-  P.TraceSet.elements traces
+  P.Trace_set.elements traces
   |> List.iter (fun (cfg, _) ->
       printf "%-8s accepting=%b\n" (cfg_str cfg) (P.is_accepting cfg));
   [%expect {| q0 [b]   accepting=false |}]
 
 let%expect_test "an ambiguous machine keeps both derivations" =
-  run ambiguous "a" |> accepting |> P.TraceSet.elements
+  run ambiguous "a" |> accepting |> P.Trace_set.elements
   |> List.iter (fun (cfg, tags) ->
       printf "%-6s %s\n" (cfg_str cfg) (tags_str tags));
   [%expect
@@ -155,7 +155,7 @@ let%expect_test "an ambiguous machine keeps both derivations" =
 
 let%expect_test "consuming past the end of the stack yields nothing" =
   let empty_stack =
-    P.TraceSet.singleton (P.Config.{ current_state = 0; stack = [] }, [])
+    P.Trace_set.singleton (P.Config.{ current_state = 0; stack = [] }, [])
   in
-  printf "%d\n" (P.TraceSet.cardinal (P.consume anbn empty_stack 'a'));
+  printf "%d\n" (P.Trace_set.cardinal (P.consume anbn empty_stack 'a'));
   [%expect {| 0 |}]

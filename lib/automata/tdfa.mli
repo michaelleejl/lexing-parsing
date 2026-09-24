@@ -4,17 +4,17 @@ module type S = sig
   type input
   type tag
 
-  module TaggedNfa : Tnfa.S with type tag = tag and type input = input
-  module StateSet : Set.S with type elt = TaggedNfa.StateSet.elt
-  module StateMap : Map.S with type key = int
-  module InputSet : Set.S with type elt = TaggedNfa.InputSet.elt
-  module InputMap : Map.S with type key = input
+  module Tagged_nfa : Tnfa.S with type tag = tag and type input = input
+  module State_set : Set.S with type elt = Tagged_nfa.State_set.elt
+  module State_map : Map.S with type key = int
+  module Input_set : Set.S with type elt = Tagged_nfa.Input_set.elt
+  module Input_map : Map.S with type key = input
 
-  type state = StateSet.elt
-  type state_set = StateSet.t
-  type input_set = InputSet.t
-  type transition = state InputMap.t
-  type tag_lookup = tag option StateMap.t
+  type state = State_set.elt
+  type state_set = State_set.t
+  type input_set = Input_set.t
+  type transition = state Input_map.t
+  type tag_lookup = tag option State_map.t
 
   type t = {
     states : state_set;
@@ -26,10 +26,10 @@ module type S = sig
     tagger : tag_lookup;
   }
 
-  type determinisation = { dfa : t; subsets : state -> TaggedNfa.state_set }
+  type determinisation = { dfa : t; subsets : state -> Tagged_nfa.state_set }
 
-  val subset_construction : TaggedNfa.t -> determinisation
-  val determinise : TaggedNfa.t -> t
+  val subset_construction : Tagged_nfa.t -> determinisation
+  val determinise : Tagged_nfa.t -> t
   val initialise : t -> state
   val is_rejecting : t -> state -> bool
   val is_accepting : t -> state -> bool

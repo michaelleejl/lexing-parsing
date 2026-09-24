@@ -14,7 +14,7 @@ module Generalised (Grammar : GRAMMAR) = struct
 
   open Views (Bnf)
 
-  module ParseStack = struct
+  module Parse_stack = struct
     type frame = { production : production; data : data list; dot : int }
     [@@deriving compare]
 
@@ -58,60 +58,63 @@ module Generalised (Grammar : GRAMMAR) = struct
       | _ -> raise (Parse_error "cannot unwrap non-singleton stack")
   end
 
-  module StepRegistry = Registry.Make (struct
-    type elt = token -> ParseStack.t -> ParseStack.t
+  module Step_registry = Registry.Make (struct
+    type elt = token -> Parse_stack.t -> Parse_stack.t
   end)
 
   let predict_step production =
    fun _ s ->
-    let f = ParseStack.create_frame production in
-    ParseStack.push s f
+    let f = Parse_stack.create_frame production in
+    Parse_stack.push s f
 
   let register_prediction production =
-    StepRegistry.register (predict_step production)
+    Step_registry.register (predict_step production)
 
-  let read_step r = fun token s -> ParseStack.fill s (read r token)
-  let register_reader r = StepRegistry.register (read_step r)
+  let read_step r = fun token s -> Parse_stack.fill s (read r token)
+  let register_reader r = Step_registry.register (read_step r)
 
-  module TaggedPda = Automata.Tpda.Make (Terminal) (Sym) (StepRegistry.Id)
+  module Tagged_pda = Automata.Tpda.Make (Terminal) (Sym) (Step_registry.Id)
 
-  module ParseHypothesis = struct
-    type t = TaggedPda.config * ParseStack.t [@@deriving compare]
+  module Parse_hypothesis = struct
+    type t = Tagged_pda.config * Parse_stack.t [@@deriving compare]
   end
 
-  module ParseHypotheses = Set.Make (ParseHypothesis)
+  module Parse_hypothesis_set = Set.Make (Parse_hypothesis)
 
-  type parse_state = { tokens : token list; hypotheses : ParseHypotheses.t }
+  type parse_state = {
+    tokens : token list;
+    hypotheses : Parse_hypothesis_set.t;
+  }
 
   let rec evolve_stack token tags stack =
     match tags with
     | [] -> stack
     | t :: ts ->
-        let step = StepRegistry.get t in
+        let step = Step_registry.get t in
         evolve_stack token ts (step token stack)
 
   let collect_traces token stack (new_cfg, trace) hypotheses =
     let new_stack = evolve_stack token trace stack in
     let hypothesis = (new_cfg, new_stack) in
-    ParseHypotheses.add hypothesis hypotheses
+    Parse_hypothesis_set.add hypothesis hypotheses
 
-  let advance_one machine token ((config, stack) : ParseHypothesis.t) =
+  let advance_one machine token ((config, stack) : Parse_hypothesis.t) =
     let traces =
-      TaggedPda.consume machine
-        (TaggedPda.TraceSet.singleton (config, []))
+      Tagged_pda.consume machine
+        (Tagged_pda.Trace_set.singleton (config, []))
         (token_to_terminal token)
     in
-    TaggedPda.TraceSet.fold
+    Tagged_pda.Trace_set.fold
       (collect_traces token stack)
-      traces ParseHypotheses.empty
+      traces Parse_hypothesis_set.empty
 
   let advance machine token hypotheses =
-    ParseHypotheses.fold
+    Parse_hypothesis_set.fold
       (fun hyp ->
         fun hyps ->
          let hyps' = advance_one machine token hyp in
-         ParseHypotheses.union hyps hyps')
-      hypotheses ParseHypotheses.empty
+         Parse_hypothesis_set.union hyps hyps')
+      hypotheses Parse_hypothesis_set.empty
 
   let parse_step machine tok { tokens; hypotheses } =
     let new_hypotheses = advance machine tok hypotheses in
@@ -124,23 +127,23 @@ module Generalised (Grammar : GRAMMAR) = struct
         parse_run machine new_state
     | [] -> (
         let accepting =
-          ParseHypotheses.filter
-            (fun (cfg, _) -> TaggedPda.is_accepting cfg)
+          Parse_hypothesis_set.filter
+            (fun (cfg, _) -> Tagged_pda.is_accepting cfg)
             hypotheses
         in
-        match ParseHypotheses.to_list accepting with
+        match Parse_hypothesis_set.to_list accepting with
         | [] -> raise (Parse_error "no parse found")
-        | [ (_, s) ] -> finish (ParseStack.unwrap s)
+        | [ (_, s) ] -> finish (Parse_stack.unwrap s)
         | _ -> raise (Parse_error "ambiguous parse"))
 
   module Transition = struct
     type t =
       (terminal option * Sym.t)
-      * (TaggedPda.state * Sym.t list * StepRegistry.Id.t)
+      * (Tagged_pda.state * Sym.t list * Step_registry.Id.t)
     [@@deriving compare]
   end
 
-  module TransitionSet = Set.Make (Transition)
+  module Transition_set = Set.Make (Transition)
 
   let production_to_transition state (p : production) =
     let tag = register_prediction p in
@@ -150,33 +153,33 @@ module Generalised (Grammar : GRAMMAR) = struct
     let tag = register_reader (reader_of_terminal terminal) in
     ((Some terminal, T terminal), (state, [], tag))
 
-  let alt = TransitionSet.union
+  let alt = Transition_set.union
   let ( <|> ) = alt
 
   let compile productions =
     let state = 0 in
     let ts =
-      TransitionSet.of_list
+      Transition_set.of_list
         (List.map (production_to_transition state) productions)
-      <|> TransitionSet.of_list
+      <|> Transition_set.of_list
             (List.map (terminal_to_transition state) terminals)
     in
     let transitions =
-      TransitionSet.fold
+      Transition_set.fold
         (fun (input, output) transitions ->
           let existing =
-            match TaggedPda.Transition.find_opt input transitions with
+            match Tagged_pda.Transition_map.find_opt input transitions with
             | Some outputs -> outputs
-            | None -> TaggedPda.TransitionOutputSet.empty
+            | None -> Tagged_pda.Transition_output_set.empty
           in
-          TaggedPda.Transition.add input
-            (TaggedPda.TransitionOutputSet.add output existing)
+          Tagged_pda.Transition_map.add input
+            (Tagged_pda.Transition_output_set.add output existing)
             transitions)
-        ts TaggedPda.Transition.empty
+        ts Tagged_pda.Transition_map.empty
     in
-    TaggedPda.
+    Tagged_pda.
       {
-        states = TaggedPda.State.singleton state;
+        states = Tagged_pda.State_set.singleton state;
         initial_state = state;
         initial_stack_sym = N start;
         next = (fun _ -> transitions);
@@ -186,23 +189,23 @@ module Generalised (Grammar : GRAMMAR) = struct
 
   let parse tokens =
     let initial_hypothesis =
-      ( TaggedPda.Config.
+      ( Tagged_pda.Config.
           {
-            current_state = parser.TaggedPda.initial_state;
-            stack = [ parser.TaggedPda.initial_stack_sym ];
+            current_state = parser.Tagged_pda.initial_state;
+            stack = [ parser.Tagged_pda.initial_stack_sym ];
           },
-        ParseStack.empty )
+        Parse_stack.empty )
     in
     let initial_state =
       {
         tokens = tokens @ [ eof ];
-        hypotheses = ParseHypotheses.singleton initial_hypothesis;
+        hypotheses = Parse_hypothesis_set.singleton initial_hypothesis;
       }
     in
     parse_run parser initial_state
 end
 
-module LL1 (Grammar : GRAMMAR) = struct
+module Ll1 (Grammar : GRAMMAR) = struct
   module Augmented = Topdown_augment (Grammar)
   open Augmented
   module Bnf = Augmented.Bnf
@@ -213,7 +216,7 @@ module LL1 (Grammar : GRAMMAR) = struct
 
   open Views (Bnf)
 
-  module ParseStack = struct
+  module Parse_stack = struct
     type frame = { production : production; data : data list; dot : int }
     [@@deriving compare]
 
@@ -264,24 +267,24 @@ module LL1 (Grammar : GRAMMAR) = struct
       | _ -> raise (Parse_error "cannot unwrap non-singleton stack")
   end
 
-  module StepRegistry = Registry.Make (struct
-    type elt = token -> ParseStack.t -> ParseStack.t
+  module Step_registry = Registry.Make (struct
+    type elt = token -> Parse_stack.t -> Parse_stack.t
   end)
 
   let predict_step production =
    fun _ s ->
-    let f = ParseStack.create_frame production in
-    ParseStack.push s f
+    let f = Parse_stack.create_frame production in
+    Parse_stack.push s f
 
   let register_prediction production =
-    StepRegistry.register (predict_step production)
+    Step_registry.register (predict_step production)
 
-  let read_step r = fun token s -> ParseStack.fill s (read r token)
-  let register_reader r = StepRegistry.register (read_step r)
+  let read_step r = fun token s -> Parse_stack.fill s (read r token)
+  let register_reader r = Step_registry.register (read_step r)
 
-  module ParseTable = struct
+  module Parse_table = struct
     type key = Sym.t * Terminal.t
-    type value = StepRegistry.Id.t
+    type value = Step_registry.Id.t
     type t = (key, value) Hashtbl.t
 
     let tbl : t = Hashtbl.create 128
@@ -296,48 +299,49 @@ module LL1 (Grammar : GRAMMAR) = struct
           if v <> v' then
             match k with
             | T _, _ -> raise (Parse_error "duplicate consumption")
-            | N _, _ -> raise (Parse_error "grammar not in LL1"))
+            | N _, _ -> raise (Parse_error "grammar not in Ll1"))
       | exception Not_found -> Hashtbl.add tbl k v
   end
 
   open Analysis
-  open GrammarAnalysis (Bnf)
+  open Grammar_analysis (Bnf)
 
-  type parse_state = { tokens : token list; stack : ParseStack.t }
+  type parse_state = { tokens : token list; stack : Parse_stack.t }
 
   let evolve_stack token tag stack =
-    let step = StepRegistry.get tag in
+    let step = Step_registry.get tag in
     step token stack
 
   let parse_step { tokens; stack } =
     match tokens with
     | [] -> raise (Parse_error "unexpected end of input")
     | tok :: toks -> (
-        match ParseStack.peek stack with
+        match Parse_stack.peek stack with
         | T term ->
             let term' = token_to_terminal tok in
             if term = term' then
               {
                 tokens = toks;
-                stack = evolve_stack tok (ParseTable.find (T term, term)) stack;
+                stack = evolve_stack tok (Parse_table.find (T term, term)) stack;
               }
             else raise (Parse_error "parse fail")
         | N nonterm ->
             let term = token_to_terminal tok in
             {
               tokens;
-              stack = evolve_stack tok (ParseTable.find (N nonterm, term)) stack;
+              stack =
+                evolve_stack tok (Parse_table.find (N nonterm, term)) stack;
             })
 
   let rec parse_run ({ tokens; stack } as state) =
     match tokens with
     | _ :: _ -> parse_run (parse_step state)
-    | [] -> Augmented.finish (ParseStack.unwrap stack)
+    | [] -> Augmented.finish (Parse_stack.unwrap stack)
 
   let compile ps =
     List.iter
       (fun terminal ->
-        ParseTable.add (T terminal, terminal)
+        Parse_table.add (T terminal, terminal)
           (register_reader (reader_of_terminal terminal)))
       terminals;
     List.iter
@@ -345,15 +349,19 @@ module LL1 (Grammar : GRAMMAR) = struct
         let tag = register_prediction p in
         let firsts = First.syms p.rhs in
         let firsts' = to_terminals firsts in
-        TSet.iter (fun term -> ParseTable.add (N p.lhs, term) tag) firsts';
-        if TESet.mem TE.Eps firsts then
+        Terminal_set.iter
+          (fun term -> Parse_table.add (N p.lhs, term) tag)
+          firsts';
+        if Term_or_eps_set.mem Term_or_eps.Eps firsts then
           let follows = Follow.nonterminal p.lhs in
-          TSet.iter (fun term -> ParseTable.add (N p.lhs, term) tag) follows)
+          Terminal_set.iter
+            (fun term -> Parse_table.add (N p.lhs, term) tag)
+            follows)
       ps
 
   let () = compile productions.rest
 
   let parse tokens =
-    let frame = ParseStack.create_frame productions.start in
+    let frame = Parse_stack.create_frame productions.start in
     parse_run { tokens = tokens @ [ eof ]; stack = [ frame ] }
 end

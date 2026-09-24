@@ -17,7 +17,7 @@ module Generalised (Grammar : GRAMMAR) = struct
   type token = Augmented.token [@@deriving compare]
   type ast = Augmented.ast [@@deriving compare]
 
-  module Item = LR0.Make (Bnf)
+  module Item = Lr0.Make (Bnf)
   module State = States.Make (Item)
   open State
   module Actions = Actions (State)
@@ -34,13 +34,13 @@ module Generalised (Grammar : GRAMMAR) = struct
   }
   [@@deriving compare]
 
-  module ParseState = struct
+  module Parse_state = struct
     type t = Partial of hypothesis | Accepted of ast [@@deriving compare]
   end
 
-  type parse_state = ParseState.t = Partial of hypothesis | Accepted of ast
+  type parse_state = Parse_state.t = Partial of hypothesis | Accepted of ast
 
-  module ParseStates = Set.Make (ParseState)
+  module Parse_state_set = Set.Make (Parse_state)
 
   let accept args =
     Accepted (finish (build (builder_of_production productions.start) args))
@@ -55,10 +55,10 @@ module Generalised (Grammar : GRAMMAR) = struct
           let data_stack = datum :: data_stack in
           let state = List.hd state_stack in
           let state_stack = next state sym :: state_stack in
-          ParseStates.singleton (Partial { tokens; data_stack; state_stack })
-        with Failure _ -> ParseStates.empty
+          Parse_state_set.singleton (Partial { tokens; data_stack; state_stack })
+        with Failure _ -> Parse_state_set.empty
         end
-    | _ -> ParseStates.empty
+    | _ -> Parse_state_set.empty
 
   let reduce prod { data_stack; state_stack; tokens } =
     try
@@ -70,13 +70,13 @@ module Generalised (Grammar : GRAMMAR) = struct
       let state_stack = List.drop n state_stack in
       let state = List.hd state_stack in
       let state_stack = Goto.find state nonterminal :: state_stack in
-      ParseStates.singleton (Partial { state_stack; data_stack; tokens })
-    with Not_found | Failure _ -> ParseStates.empty
+      Parse_state_set.singleton (Partial { state_stack; data_stack; tokens })
+    with Not_found | Failure _ -> Parse_state_set.empty
 
   let interpret = function Shift -> shift | Reduce p -> reduce p
 
   let evolve = function
-    | Accepted a -> ParseStates.singleton (Accepted a)
+    | Accepted a -> Parse_state_set.singleton (Accepted a)
     | Partial ({ tokens; state_stack; data_stack } as hyp) -> (
         match (tokens, state_stack) with
         | [], _ -> raise (Parse_error "unexpected eof")
@@ -84,23 +84,23 @@ module Generalised (Grammar : GRAMMAR) = struct
         | tok :: _, state :: state_stack ->
             let accept =
               if tok = eof && is_accepting state then
-                ParseStates.singleton (accept data_stack)
-              else ParseStates.empty
+                Parse_state_set.singleton (accept data_stack)
+              else Parse_state_set.empty
             in
             let terminal = token_to_terminal tok in
             let actions = Actions.find state terminal in
             List.fold_left
-              (fun states act -> ParseStates.union (interpret act hyp) states)
+              (fun states act -> Parse_state_set.union (interpret act hyp) states)
               accept actions)
 
   let parse_step states =
-    ParseStates.fold
-      (fun state states -> ParseStates.union (evolve state) states)
-      states ParseStates.empty
+    Parse_state_set.fold
+      (fun state states -> Parse_state_set.union (evolve state) states)
+      states Parse_state_set.empty
 
   let parse tokens =
     let initial =
-      ParseStates.singleton
+      Parse_state_set.singleton
         (Partial
            {
              data_stack = [];
@@ -108,16 +108,16 @@ module Generalised (Grammar : GRAMMAR) = struct
              tokens = tokens @ [ eof ];
            })
     in
-    fix ~eq:ParseStates.equal parse_step initial
-    |> ParseStates.filter (function Accepted _ -> true | Partial _ -> false)
-    |> ParseStates.to_list
+    fix ~eq:Parse_state_set.equal parse_step initial
+    |> Parse_state_set.filter (function Accepted _ -> true | Partial _ -> false)
+    |> Parse_state_set.to_list
     |> function
     | [] -> raise (Parse_error "no valid hypotheses")
     | [ Accepted a ] -> a
     | _ -> raise (Parse_error "ambiguous ast, multiple parses")
 end
 
-module SLR1 (Grammar : GRAMMAR) = struct
+module Slr1 (Grammar : GRAMMAR) = struct
   module Augmented = Bottomup_augment (Grammar)
   module Bnf = Augmented.Bnf
   open Augmented
@@ -127,7 +127,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
   type token = Augmented.token [@@deriving compare]
   type ast = Augmented.ast [@@deriving compare]
 
-  module Item = LR0.Make (Bnf)
+  module Item = Lr0.Make (Bnf)
   module State = States.Make (Item)
   open State
   module Action = Action (State)
@@ -208,7 +208,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
     run initial
 end
 
-module LR1 (Grammar : GRAMMAR) = struct
+module Lr1 (Grammar : GRAMMAR) = struct
   module Augmented = Bottomup_augment (Grammar)
   module Bnf = Augmented.Bnf
   open Augmented
@@ -218,7 +218,7 @@ module LR1 (Grammar : GRAMMAR) = struct
   type token = Augmented.token [@@deriving compare]
   type ast = Augmented.ast [@@deriving compare]
 
-  module Item = LR1.Make (Bnf)
+  module Item = Lr1.Make (Bnf)
   module State = States.Make (Item)
   open State
   module Action = Action (State)

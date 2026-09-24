@@ -23,15 +23,15 @@ module Generalised (Grammar : GRAMMAR) = struct
   let empty _ = raise (Parse_error "empty")
   let eps toks = ([], toks)
 
-  module TerminalMap = Map.Make (Bnf.Terminal)
-  module NonterminalMap = Map.Make (Bnf.Nonterminal)
+  module Terminal_map = Map.Make (Bnf.Terminal)
+  module Nonterminal_map = Map.Make (Bnf.Nonterminal)
   open Views (Bnf)
 
   let nonterminal_map =
     let _, map =
       List.fold_left
-        (fun (idx, map) -> fun nt -> (idx + 1, NonterminalMap.add nt idx map))
-        (0, NonterminalMap.empty) nonterminals
+        (fun (idx, map) -> fun nt -> (idx + 1, Nonterminal_map.add nt idx map))
+        (0, Nonterminal_map.empty) nonterminals
     in
     map
 
@@ -47,7 +47,7 @@ module Generalised (Grammar : GRAMMAR) = struct
     with Fail -> raise (Parse_error "terminal")
 
   let nonterminal_to_parser nt fs toks =
-    (List.nth fs (NonterminalMap.find nt nonterminal_map)) toks
+    (List.nth fs (Nonterminal_map.find nt nonterminal_map)) toks
 
   type accumulator = token list -> data list * token list
 
@@ -72,7 +72,7 @@ module Generalised (Grammar : GRAMMAR) = struct
       (List.map productions_of_nonterminal nonterminals)
 
   let parser = Fixpoint.poly parsers
-  let start_parser = List.nth parser (NonterminalMap.find start nonterminal_map)
+  let start_parser = List.nth parser (Nonterminal_map.find start nonterminal_map)
 
   let parse ts =
     match start_parser (ts @ [ eof ]) with
@@ -80,7 +80,7 @@ module Generalised (Grammar : GRAMMAR) = struct
     | _ -> raise (Parse_error "fail")
 end
 
-module LL1 (Grammar : GRAMMAR) = struct
+module Ll1 (Grammar : GRAMMAR) = struct
   module Augmented = Topdown_augment (Grammar)
   open Augmented
   module Bnf = Augmented.Bnf
@@ -90,23 +90,23 @@ module LL1 (Grammar : GRAMMAR) = struct
   type token = Grammar.token
   type ast = Grammar.ast
 
-  open GrammarAnalysis (Bnf)
+  open Grammar_analysis (Bnf)
 
   type parser = token list -> data * token list
-  type predictive_parser = { prediction : TSet.t; parser : parser }
+  type predictive_parser = { prediction : Terminal_set.t; parser : parser }
 
   let predict { prediction = g1; parser = p1 } { prediction = g2; parser = p2 } =
-    if TSet.disjoint g1 g2 then
+    if Terminal_set.disjoint g1 g2 then
       let parser = function
         | tok :: _ as toks ->
             let term = token_to_terminal tok in
-            if TSet.mem term g1 then p1 toks
-            else if TSet.mem term g2 then p2 toks
+            if Terminal_set.mem term g1 then p1 toks
+            else if Terminal_set.mem term g2 then p2 toks
             else raise (Parse_error "unexpected token")
         | _ -> raise (Parse_error "bad parse")
       in
-      { prediction = TSet.union g1 g2; parser }
-    else raise (Parse_error "grammar not in LL1")
+      { prediction = Terminal_set.union g1 g2; parser }
+    else raise (Parse_error "grammar not in Ll1")
 
   let seq p1 p2 toks =
     let d1, toks' = p1 toks in
@@ -115,18 +115,18 @@ module LL1 (Grammar : GRAMMAR) = struct
 
   let ( <|> ) = predict
   let ( <&> ) = seq
-  let empty = { prediction = TSet.empty; parser = (fun _ -> assert false) }
+  let empty = { prediction = Terminal_set.empty; parser = (fun _ -> assert false) }
   let eps toks = ([], toks)
 
-  module TerminalMap = Map.Make (Bnf.Terminal)
-  module NonterminalMap = Map.Make (Bnf.Nonterminal)
+  module Terminal_map = Map.Make (Bnf.Terminal)
+  module Nonterminal_map = Map.Make (Bnf.Nonterminal)
   open Views (Bnf)
 
   let nonterminal_map =
     let _, map =
       List.fold_left
-        (fun (idx, map) -> fun nt -> (idx + 1, NonterminalMap.add nt idx map))
-        (0, NonterminalMap.empty) nonterminals
+        (fun (idx, map) -> fun nt -> (idx + 1, Nonterminal_map.add nt idx map))
+        (0, Nonterminal_map.empty) nonterminals
     in
     map
 
@@ -142,7 +142,7 @@ module LL1 (Grammar : GRAMMAR) = struct
     with Fail -> raise (Parse_error "terminal")
 
   let nonterminal_to_parser nt fs toks =
-    (List.nth fs (NonterminalMap.find nt nonterminal_map)) toks
+    (List.nth fs (Nonterminal_map.find nt nonterminal_map)) toks
 
   type accumulator = token list -> data list * token list
 
@@ -162,7 +162,7 @@ module LL1 (Grammar : GRAMMAR) = struct
     in
     let prediction =
       let first = First.syms p.rhs |> to_terminals in
-      if Nullable.syms p.rhs then TSet.union first (Follow.nonterminal p.lhs)
+      if Nullable.syms p.rhs then Terminal_set.union first (Follow.nonterminal p.lhs)
       else first
     in
     { parser; prediction }
@@ -175,7 +175,7 @@ module LL1 (Grammar : GRAMMAR) = struct
 
   let parsers = List.map productions_to_parsers production_rules
   let parser = Fixpoint.poly parsers
-  let start_parser = List.nth parser (NonterminalMap.find start nonterminal_map)
+  let start_parser = List.nth parser (Nonterminal_map.find start nonterminal_map)
 
   let parse ts =
     match start_parser (ts @ [ eof ]) with

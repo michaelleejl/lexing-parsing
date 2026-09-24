@@ -6,8 +6,8 @@ module type PARSER = sig
   val parse : token list -> ast
 end
 
-let slr1 () = (module SLR1 (Pointer_grammar) : PARSER)
-let lr1 () = (module LR1 (Pointer_grammar) : PARSER)
+let slr1 () = (module Slr1 (Pointer_grammar) : PARSER)
+let lr1 () = (module Lr1 (Pointer_grammar) : PARSER)
 
 (* Report an exception by its constructor alone.  The conflict is raised by
    [Tables.Action(State).Conflict], whose [State] argument is sealed inside
@@ -23,11 +23,11 @@ let generate name build =
   | exception e -> Printf.printf "%-6s %s\n" name (render_exn e)
 
 let%expect_test "SLR(1) cannot build a table for the pointer grammar" =
-  generate "SLR1" slr1;
-  generate "LR1" lr1;
+  generate "Slr1" slr1;
+  generate "Lr1" lr1;
   [%expect {|
-    SLR1   <Conflict>
-    LR1    table built
+    Slr1   <Conflict>
+    Lr1    table built
     |}]
 
 let cases =
@@ -51,12 +51,12 @@ let%expect_test "LR(1) parses the pointer grammar" =
   let describe toks =
     match P.parse toks with ast -> ast | exception e -> render_exn e
   in
-  Printf.printf "%-14s %s\n" "input" "LR1";
+  Printf.printf "%-14s %s\n" "input" "Lr1";
   List.iter
     (fun (src, toks) -> Printf.printf "%-14s %s\n" src (describe toks))
     cases;
   [%expect {|
-    input          LR1
+    input          Lr1
     id             x
     * id           Deref(x)
     * * id         Deref(Deref(x))

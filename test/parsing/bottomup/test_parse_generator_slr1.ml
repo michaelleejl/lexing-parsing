@@ -1,7 +1,7 @@
 open Test_lexparse_parsing
 open Lexparse.Mlot
 open Lexparse.Parsing.Bottomup.Generators
-open SLR1 (Grammars.Natural)
+open Slr1 (Grammars.Natural)
 
 let%expect_test "corpus" =
   Parse_cases.run parse;

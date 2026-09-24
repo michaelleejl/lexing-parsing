@@ -1,7 +1,7 @@
 open Lexparse.Parsing.Bottomup.Interpreters
 open Pointer_grammar
-module Slr1 = SLR1 (Pointer_grammar)
-module Lr1 = LR1 (Pointer_grammar)
+module Slr1 = Slr1 (Pointer_grammar)
+module Lr1 = Lr1 (Pointer_grammar)
 
 let cases =
   [
@@ -30,7 +30,7 @@ let describe parse toks =
       "<" ^ String.sub s i (String.length s - i) ^ ">"
 
 let%expect_test "LR(1) parses what SLR(1) sees as a conflict" =
-  Printf.printf "%-14s %-42s %s\n" "input" "SLR1" "LR1";
+  Printf.printf "%-14s %-42s %s\n" "input" "Slr1" "Lr1";
   List.iter
     (fun (src, toks) ->
       Printf.printf "%-14s %-42s %s\n" src (describe Slr1.parse toks)
@@ -38,7 +38,7 @@ let%expect_test "LR(1) parses what SLR(1) sees as a conflict" =
     cases;
   [%expect
     {|
-    input          SLR1                                       LR1
+    input          Slr1                                       Lr1
     id             x                                          x
     * id           Deref(x)                                   Deref(x)
     * * id         Deref(Deref(x))                            Deref(Deref(x))

@@ -17,21 +17,21 @@ module Generalised (Grammar : GRAMMAR) = struct
   type token = Augmented.token [@@deriving compare]
   type ast = Augmented.ast [@@deriving compare]
 
-  module Item = LR0.Make (Bnf)
+  module Item = Lr0.Make (Bnf)
   open Item
-  module ItemSet = Set.Make (Item)
+  module Item_set = Set.Make (Item)
 
   let closure items =
-    Fixpoint.fix ~eq:ItemSet.equal
+    Fixpoint.fix ~eq:Item_set.equal
       (fun its ->
-        ItemSet.fold
-          (fun item acc -> ItemSet.union (ItemSet.of_list @@ eps item) acc)
+        Item_set.fold
+          (fun item acc -> Item_set.union (Item_set.of_list @@ eps item) acc)
           its its)
       items
 
   exception Accepted of ast
 
-  type parse_state = { items : ItemSet.t; datum : data; tokens : token list }
+  type parse_state = { items : Item_set.t; datum : data; tokens : token list }
   type act = Shift | Reduce of production | No_action
 
   type reduction = {
@@ -44,12 +44,12 @@ module Generalised (Grammar : GRAMMAR) = struct
   type _ Effect.t += Reduce_result : reduction -> unit Effect.t
 
   let shift_sym_on_items items sym =
-    ItemSet.fold
+    Item_set.fold
       (fun item acc ->
         match advance item sym with
         | None -> acc
-        | Some item' -> ItemSet.add item' acc)
-      items ItemSet.empty
+        | Some item' -> Item_set.add item' acc)
+      items Item_set.empty
 
   let shift { tokens; items } =
     match tokens with
@@ -76,7 +76,7 @@ module Generalised (Grammar : GRAMMAR) = struct
     | _ -> No_action
 
   let actions state tokens =
-    ItemSet.fold
+    Item_set.fold
       (fun item (reduces, shifts) ->
         match action item tokens with
         | No_action -> (reduces, shifts)
@@ -117,7 +117,7 @@ module Generalised (Grammar : GRAMMAR) = struct
         | effect Reduce_result result, k -> handle_reduce result k
       with Parse_error _ -> fallback ()
     in
-    if ItemSet.is_empty state then raise (Parse_error "empty state")
+    if Item_set.is_empty state then raise (Parse_error "empty state")
     else
       let rec try_act rs s =
         match rs with
@@ -149,7 +149,7 @@ module Generalised (Grammar : GRAMMAR) = struct
       match
         parser
           {
-            items = ItemSet.singleton items.start;
+            items = Item_set.singleton items.start;
             datum = Data.start;
             tokens = ts @ [ eof ];
           }
@@ -159,7 +159,7 @@ module Generalised (Grammar : GRAMMAR) = struct
     with Accepted ast -> ast
 end
 
-module SLR1 (Grammar : GRAMMAR) = struct
+module Slr1 (Grammar : GRAMMAR) = struct
   module Augmented = Bottomup_augment (Grammar)
   module Bnf = Augmented.Bnf
   open Augmented
@@ -169,19 +169,19 @@ module SLR1 (Grammar : GRAMMAR) = struct
   type token = Augmented.token [@@deriving compare]
   type ast = Augmented.ast [@@deriving compare]
 
-  module Item = LR0.Make (Bnf)
+  module Item = Lr0.Make (Bnf)
   open Item
-  module ItemSet = Set.Make (Item)
+  module Item_set = Set.Make (Item)
 
   let closure items =
-    Fixpoint.fix ~eq:ItemSet.equal
+    Fixpoint.fix ~eq:Item_set.equal
       (fun its ->
-        ItemSet.fold
-          (fun item acc -> ItemSet.union (ItemSet.of_list @@ eps item) acc)
+        Item_set.fold
+          (fun item acc -> Item_set.union (Item_set.of_list @@ eps item) acc)
           its its)
       items
 
-  type parse_state = { items : ItemSet.t; datum : data; tokens : token list }
+  type parse_state = { items : Item_set.t; datum : data; tokens : token list }
   type act = Shift | Reduce of production | No_action
 
   type reduction = {
@@ -194,12 +194,12 @@ module SLR1 (Grammar : GRAMMAR) = struct
   type outcome = Partial of reduction | Accepted of ast
 
   let shift_sym_on_items items sym =
-    ItemSet.fold
+    Item_set.fold
       (fun item acc ->
         match advance item sym with
         | None -> acc
-        | Some item' -> ItemSet.add item' acc)
-      items ItemSet.empty
+        | Some item' -> Item_set.add item' acc)
+      items Item_set.empty
 
   let shift { tokens; items } =
     match tokens with
@@ -226,7 +226,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
         | _ -> No_action)
 
   let actions state tokens =
-    ItemSet.fold
+    Item_set.fold
       (fun item (reduces, shifts) ->
         match action item tokens with
         | No_action -> (reduces, shifts)
@@ -255,7 +255,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
           tokens;
         }
     and next state = handle_reduce (parser state) in
-    if ItemSet.is_empty state then raise (Parse_error "empty state")
+    if Item_set.is_empty state then raise (Parse_error "empty state")
     else
       let act rs s =
         match (rs, s) with
@@ -282,7 +282,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
     match
       parser
         {
-          items = ItemSet.singleton items.start;
+          items = Item_set.singleton items.start;
           datum = Data.start;
           tokens = ts @ [ eof ];
         }
@@ -291,7 +291,7 @@ module SLR1 (Grammar : GRAMMAR) = struct
     | _ -> raise (Parse_error "no valid parse")
 end
 
-module LR1 (Grammar : GRAMMAR) = struct
+module Lr1 (Grammar : GRAMMAR) = struct
   module Augmented = Bottomup_augment (Grammar)
   module Bnf = Augmented.Bnf
   open Augmented
@@ -301,19 +301,19 @@ module LR1 (Grammar : GRAMMAR) = struct
   type token = Augmented.token [@@deriving compare]
   type ast = Augmented.ast [@@deriving compare]
 
-  module Item = Items.LR1.Make (Bnf)
+  module Item = Items.Lr1.Make (Bnf)
   open Item
-  module ItemSet = Set.Make (Item)
+  module Item_set = Set.Make (Item)
 
   let closure items =
-    Fixpoint.fix ~eq:ItemSet.equal
+    Fixpoint.fix ~eq:Item_set.equal
       (fun its ->
-        ItemSet.fold
-          (fun item acc -> ItemSet.union (ItemSet.of_list @@ eps item) acc)
+        Item_set.fold
+          (fun item acc -> Item_set.union (Item_set.of_list @@ eps item) acc)
           its its)
       items
 
-  type parse_state = { items : ItemSet.t; datum : data; tokens : token list }
+  type parse_state = { items : Item_set.t; datum : data; tokens : token list }
   type act = Shift | Reduce of production | No_action
 
   type reduction = {
@@ -326,12 +326,12 @@ module LR1 (Grammar : GRAMMAR) = struct
   type outcome = Partial of reduction | Accepted of ast
 
   let shift_sym_on_items items sym =
-    ItemSet.fold
+    Item_set.fold
       (fun item acc ->
         match advance item sym with
         | None -> acc
-        | Some item' -> ItemSet.add item' acc)
-      items ItemSet.empty
+        | Some item' -> Item_set.add item' acc)
+      items Item_set.empty
 
   let shift { tokens; items } =
     match tokens with
@@ -358,7 +358,7 @@ module LR1 (Grammar : GRAMMAR) = struct
         | _ -> No_action)
 
   let actions state tokens =
-    ItemSet.fold
+    Item_set.fold
       (fun item (reduces, shifts) ->
         match action item tokens with
         | No_action -> (reduces, shifts)
@@ -387,7 +387,7 @@ module LR1 (Grammar : GRAMMAR) = struct
           tokens;
         }
     and next state = handle_reduce (parser state) in
-    if ItemSet.is_empty state then raise (Parse_error "empty state")
+    if Item_set.is_empty state then raise (Parse_error "empty state")
     else
       let act rs s =
         match (rs, s) with
@@ -414,7 +414,7 @@ module LR1 (Grammar : GRAMMAR) = struct
     match
       parser
         {
-          items = ItemSet.singleton items.start;
+          items = Item_set.singleton items.start;
           datum = Data.start;
           tokens = ts @ [ eof ];
         }

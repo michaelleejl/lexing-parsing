@@ -7,16 +7,16 @@ module type S = sig
 
   type state = Nfa.state
 
-  module StateSet : Set.S with type elt = state
-  module InputSet : Set.S with type elt = input
-  module InputOptMap : Map.S with type key = input option
-  module StateMap : Map.S with type key = state
+  module State_set : Set.S with type elt = state
+  module Input_set : Set.S with type elt = input
+  module Input_opt_map : Map.S with type key = input option
+  module State_map : Map.S with type key = state
 
   type tag
-  type transition = StateSet.t InputOptMap.t
-  type state_set = StateSet.t
-  type input_set = InputSet.t
-  type tag_lookup = tag StateMap.t
+  type transition = State_set.t Input_opt_map.t
+  type state_set = State_set.t
+  type input_set = Input_set.t
+  type tag_lookup = tag State_map.t
 
   type t = {
     states : state_set;

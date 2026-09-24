@@ -18,7 +18,7 @@ module type ITEM = sig
   val production_of : item -> production
 end
 
-module LR0 = struct
+module Lr0 = struct
   module Make (Bnf : AUGMENTED_BNF) :
     ITEM
       with module Terminal = Bnf.Terminal
@@ -27,7 +27,7 @@ module LR0 = struct
        and type production = Bnf.production = struct
     include Bnf
     open Views (Bnf)
-    open Analysis.GrammarAnalysis (Bnf)
+    open Analysis.Grammar_analysis (Bnf)
 
     type t = { production : production; dot : int } [@@deriving compare]
     type item = t
@@ -83,11 +83,11 @@ module LR0 = struct
     let may_reduce_on item terminal =
       let production = production_of item in
       let lhs = production.lhs in
-      TSet.mem terminal (Follow.nonterminal lhs)
+      Terminal_set.mem terminal (Follow.nonterminal lhs)
   end
 end
 
-module LR1 = struct
+module Lr1 = struct
   module Make (Bnf : AUGMENTED_BNF) :
     ITEM
       with module Terminal = Bnf.Terminal
@@ -96,7 +96,7 @@ module LR1 = struct
        and type production = Bnf.production = struct
     include Bnf
     open Views (Bnf)
-    open Analysis.GrammarAnalysis (Bnf)
+    open Analysis.Grammar_analysis (Bnf)
 
     type t = { production : production; dot : int; lookahead : terminal }
     [@@deriving compare]
@@ -136,7 +136,7 @@ module LR1 = struct
           let suffix = List.drop (dot + 1) production.rhs in
           let productions = productions_of_nonterminal n in
           let lookaheads =
-            First.syms (suffix @ [ T lookahead ]) |> to_terminals |> TSet.to_list
+            First.syms (suffix @ [ T lookahead ]) |> to_terminals |> Terminal_set.to_list
           in
           List.map
             (fun production ->

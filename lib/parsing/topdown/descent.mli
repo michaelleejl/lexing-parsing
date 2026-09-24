@@ -5,7 +5,7 @@ module Generalised : sig
   val parse : token list -> ast
 end
 
-module LL1 : sig
+module Ll1 : sig
   type token = Mlot.Token.t
   type ast = Mlot.Ast.node
 
