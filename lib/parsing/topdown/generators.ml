@@ -98,7 +98,7 @@ module Generalised (Grammar : GRAMMAR) = struct
     let hypothesis = (new_cfg, new_stack) in
     Parse_hypothesis_set.add hypothesis hypotheses
 
-  let advance_one machine token ((config, stack) : Parse_hypothesis.t) =
+  let step machine token ((config, stack) : Parse_hypothesis.t) =
     let traces =
       Tagged_pda.consume machine
         (Tagged_pda.Trace_set.singleton (config, []))
@@ -108,23 +108,18 @@ module Generalised (Grammar : GRAMMAR) = struct
       (collect_traces token stack)
       traces Parse_hypothesis_set.empty
 
-  let advance machine token hypotheses =
+  let step_all machine token hypotheses =
     Parse_hypothesis_set.fold
       (fun hyp ->
         fun hyps ->
-         let hyps' = advance_one machine token hyp in
+         let hyps' = step machine token hyp in
          Parse_hypothesis_set.union hyps hyps')
       hypotheses Parse_hypothesis_set.empty
 
-  let parse_step machine tok { tokens; hypotheses } =
-    let new_hypotheses = advance machine tok hypotheses in
-    { tokens; hypotheses = new_hypotheses }
-
-  let rec parse_run machine { tokens; hypotheses } =
+  let rec run machine { tokens; hypotheses } =
     match tokens with
     | t :: ts ->
-        let new_state = parse_step machine t { tokens = ts; hypotheses } in
-        parse_run machine new_state
+        run machine { tokens = ts; hypotheses = step_all machine t hypotheses }
     | [] -> (
         let accepting =
           Parse_hypothesis_set.filter
@@ -202,7 +197,7 @@ module Generalised (Grammar : GRAMMAR) = struct
         hypotheses = Parse_hypothesis_set.singleton initial_hypothesis;
       }
     in
-    parse_run parser initial_state
+    run parser initial_state
 end
 
 module Ll1 (Grammar : GRAMMAR) = struct
@@ -312,7 +307,7 @@ module Ll1 (Grammar : GRAMMAR) = struct
     let step = Step_registry.get tag in
     step token stack
 
-  let parse_step { tokens; stack } =
+  let step { tokens; stack } =
     match tokens with
     | [] -> raise (Parse_error "unexpected end of input")
     | tok :: toks -> (
@@ -333,9 +328,9 @@ module Ll1 (Grammar : GRAMMAR) = struct
                 evolve_stack tok (Parse_table.find (N nonterm, term)) stack;
             })
 
-  let rec parse_run ({ tokens; stack } as state) =
+  let rec run ({ tokens; stack } as state) =
     match tokens with
-    | _ :: _ -> parse_run (parse_step state)
+    | _ :: _ -> run (step state)
     | [] -> Augmented.finish (Parse_stack.unwrap stack)
 
   let compile ps =
@@ -363,5 +358,5 @@ module Ll1 (Grammar : GRAMMAR) = struct
 
   let parse tokens =
     let frame = Parse_stack.create_frame productions.start in
-    parse_run { tokens = tokens @ [ eof ]; stack = [ frame ] }
+    run { tokens = tokens @ [ eof ]; stack = [ frame ] }
 end

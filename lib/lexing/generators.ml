@@ -75,7 +75,7 @@ struct
       match rest with
       | [] ->
           if is_accepting machine state then
-            advance machine tokens rest buffer 0 state
+            emit machine tokens rest buffer 0 state
           else rollback machine state rest tokens buffer last_accepting
       | c :: rest ->
           let next_state = step machine state c in
@@ -97,9 +97,9 @@ struct
   and rollback machine state rest tokens buffer last_accepting =
     match last_accepting with
     | None -> raise (Lex_error "no last accepting state")
-    | Some (k, qs) -> advance machine tokens rest buffer k qs
+    | Some (k, qs) -> emit machine tokens rest buffer k qs
 
-  and advance machine tokens rest buffer k qs =
+  and emit machine tokens rest buffer k qs =
     let tag = emit_tag machine qs in
     match tag with
     | None -> raise (Lex_error "tag is empty")

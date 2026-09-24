@@ -11,8 +11,8 @@ module Recogniser = struct
     | [] -> Unmatched
     | x :: xs -> if Charset.mem x cs then Matched xs else Unmatched
 
-  let emp _ = Unmatched
-  let eps cs = Matched cs
+  let empty _ = Unmatched
+  let epsilon cs = Matched cs
   let seq r1 r2 cs = match r1 cs with Unmatched -> Unmatched | Matched cs -> r2 cs
 
   let alt r1 r2 cs =
@@ -28,8 +28,8 @@ module Recogniser = struct
 
   let rec interpret r =
     match r with
-    | Empty -> emp
-    | Epsilon -> eps
+    | Empty -> empty
+    | Epsilon -> epsilon
     | Chars cs -> one_of cs
     | Alt (r1, r2) -> alt (interpret r1) (interpret r2)
     | Seq (r1, r2) -> seq (interpret r1) (interpret r2)
@@ -47,7 +47,7 @@ struct
   type r = Regex.t
   type matcher_state = { matched : char list; rest : char list }
   type s = char list -> matcher_state outcome
-  type lex_state = { lexed : token list; rest : char list }
+  type lex_state = { tokens : token list; rest : char list }
   type t = lex_state -> lex_state outcome
 
   exception Lex_error
@@ -58,8 +58,8 @@ struct
         if Regex.Charset.mem x cs then Matched { matched = [ x ]; rest = xs }
         else Unmatched
 
-  let eps s = Matched { matched = []; rest = s }
-  let emp _ = Unmatched
+  let epsilon s = Matched { matched = []; rest = s }
+  let empty _ = Unmatched
 
   let seq m1 m2 cs =
     match m1 cs with
@@ -91,23 +91,23 @@ struct
 
   let rec interpret' r =
     match r with
-    | Empty -> emp
-    | Epsilon -> eps
+    | Empty -> empty
+    | Epsilon -> epsilon
     | Chars cs -> one_of cs
     | Alt (r1, r2) -> alt (interpret' r1) (interpret' r2)
     | Seq (r1, r2) -> seq (interpret' r1) (interpret' r2)
     | Kleene r -> kleene (interpret' r)
 
-  let interpret r to_token { lexed; rest } =
+  let interpret r to_token { tokens; rest } =
     let m = interpret' r in
     match m rest with
     | Unmatched -> Unmatched
     | Matched { matched; rest } -> (
         match to_token matched with
-        | None -> Matched { lexed; rest }
-        | Some t -> Matched { lexed = t :: lexed; rest })
+        | None -> Matched { tokens; rest }
+        | Some t -> Matched { tokens = t :: tokens; rest })
 
-  let alt_l l1 l2 s =
+  let alt_lexer l1 l2 s =
     match (l1 s, l2 s) with
     | Unmatched, Unmatched -> Unmatched
     | Matched s, Unmatched -> Matched s
@@ -116,17 +116,17 @@ struct
         if List.length s.rest <= List.length s'.rest then Matched s
         else Matched s'
 
-  let ( <|> ) = alt_l
+  let ( <|> ) = alt_lexer
 
-  let lex_step l state =
-    match l state with
-    | Matched { lexed; rest } -> { lexed; rest }
+  let lex_step lexer state =
+    match lexer state with
+    | Matched { tokens; rest } -> { tokens; rest }
     | Unmatched -> raise Lex_error
 
-  let rec lex_run l state =
+  let rec lex_run lexer state =
     match state with
-    | { lexed; rest = [] } -> List.rev lexed
-    | { lexed; rest } as state -> lex_run l (lex_step l state)
+    | { tokens; rest = [] } -> List.rev tokens
+    | { tokens; rest } as state -> lex_run lexer (lex_step lexer state)
 
   let lexers = List.map (fun (r, a) -> interpret r a) Spec.rules
   let empty_lexer = interpret Regex.empty (fun _ -> raise Lex_error)
@@ -134,5 +134,5 @@ struct
 
   let lex s =
     let cs = Base.String.to_list s in
-    lex_run lexer { lexed = []; rest = cs }
+    lex_run lexer { tokens = []; rest = cs }
 end
