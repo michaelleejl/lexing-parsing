@@ -27,20 +27,20 @@ module Generalised (Grammar : GRAMMAR) = struct
   type data_stack = data list [@@deriving compare]
   type state_stack = State.t list [@@deriving compare]
 
-  type hypothesis = {
+  type config = {
     data_stack : data_stack;
     state_stack : state_stack;
     tokens : token list;
   }
   [@@deriving compare]
 
-  module Parse_state = struct
-    type t = Partial of hypothesis | Accepted of ast [@@deriving compare]
+  module Outcome = struct
+    type t = Partial of config | Accepted of ast [@@deriving compare]
   end
 
-  type parse_state = Parse_state.t = Partial of hypothesis | Accepted of ast
+  type outcome = Outcome.t = Partial of config | Accepted of ast
 
-  module Parse_state_set = Set.Make (Parse_state)
+  module Outcome_set = Set.Make (Outcome)
 
   let accept args =
     Accepted (finish (build (builder_of_production productions.start) args))
@@ -55,10 +55,10 @@ module Generalised (Grammar : GRAMMAR) = struct
           let data_stack = datum :: data_stack in
           let state = List.hd state_stack in
           let state_stack = next state sym :: state_stack in
-          Parse_state_set.singleton (Partial { tokens; data_stack; state_stack })
-        with Failure _ -> Parse_state_set.empty
+          Outcome_set.singleton (Partial { tokens; data_stack; state_stack })
+        with Failure _ -> Outcome_set.empty
         end
-    | _ -> Parse_state_set.empty
+    | _ -> Outcome_set.empty
 
   let reduce prod { data_stack; state_stack; tokens } =
     try
@@ -70,37 +70,37 @@ module Generalised (Grammar : GRAMMAR) = struct
       let state_stack = List.drop n state_stack in
       let state = List.hd state_stack in
       let state_stack = Goto.find state nonterminal :: state_stack in
-      Parse_state_set.singleton (Partial { state_stack; data_stack; tokens })
-    with Not_found | Failure _ -> Parse_state_set.empty
+      Outcome_set.singleton (Partial { state_stack; data_stack; tokens })
+    with Not_found | Failure _ -> Outcome_set.empty
 
-  let interpret = function Shift -> shift | Reduce p -> reduce p
+  let apply = function Shift -> shift | Reduce p -> reduce p
 
-  let evolve = function
-    | Accepted a -> Parse_state_set.singleton (Accepted a)
-    | Partial ({ tokens; state_stack; data_stack } as hyp) -> (
+  let step = function
+    | Accepted a -> Outcome_set.singleton (Accepted a)
+    | Partial ({ tokens; state_stack; data_stack } as cfg) -> (
         match (tokens, state_stack) with
         | [], _ -> raise (Parse_error "unexpected eof")
         | _, [] -> raise (Parse_error "unexpected empty state stack")
         | tok :: _, state :: state_stack ->
             let accept =
               if tok = eof && is_accepting state then
-                Parse_state_set.singleton (accept data_stack)
-              else Parse_state_set.empty
+                Outcome_set.singleton (accept data_stack)
+              else Outcome_set.empty
             in
             let terminal = token_to_terminal tok in
             let actions = Actions.find state terminal in
             List.fold_left
-              (fun states act -> Parse_state_set.union (interpret act hyp) states)
+              (fun states act -> Outcome_set.union (apply act cfg) states)
               accept actions)
 
-  let parse_step states =
-    Parse_state_set.fold
-      (fun state states -> Parse_state_set.union (evolve state) states)
-      states Parse_state_set.empty
+  let step_all states =
+    Outcome_set.fold
+      (fun state states -> Outcome_set.union (step state) states)
+      states Outcome_set.empty
 
   let parse tokens =
     let initial =
-      Parse_state_set.singleton
+      Outcome_set.singleton
         (Partial
            {
              data_stack = [];
@@ -108,9 +108,9 @@ module Generalised (Grammar : GRAMMAR) = struct
              tokens = tokens @ [ eof ];
            })
     in
-    fix ~eq:Parse_state_set.equal parse_step initial
-    |> Parse_state_set.filter (function Accepted _ -> true | Partial _ -> false)
-    |> Parse_state_set.to_list
+    fix ~eq:Outcome_set.equal step_all initial
+    |> Outcome_set.filter (function Accepted _ -> true | Partial _ -> false)
+    |> Outcome_set.to_list
     |> function
     | [] -> raise (Parse_error "no valid hypotheses")
     | [ Accepted a ] -> a
@@ -143,7 +143,7 @@ module Slr1 (Grammar : GRAMMAR) = struct
     tokens : token list 
   }
 
-  type parse_state = Partial of config | Accepted of ast 
+  type outcome = Partial of config | Accepted of ast 
 
 
   let accept args =
@@ -177,7 +177,7 @@ module Slr1 (Grammar : GRAMMAR) = struct
       Partial { state_stack; data_stack; tokens }
     with Failure _ -> raise (Parse_error "malformed parse state")
 
-  let interpret = function Shift -> shift | Reduce p -> reduce p
+  let apply = function Shift -> shift | Reduce p -> reduce p
 
   let step ({ tokens; state_stack; data_stack } as s) =
     match (tokens, state_stack) with
@@ -191,7 +191,7 @@ module Slr1 (Grammar : GRAMMAR) = struct
           else 
         let terminal = token_to_terminal tok in
         let action = Action.find state terminal in
-        interpret action s
+        apply action s
 
 
   let rec run = function
@@ -234,7 +234,7 @@ module Lr1 (Grammar : GRAMMAR) = struct
     tokens : token list 
   }
 
-  type parse_state = Partial of config | Accepted of ast 
+  type outcome = Partial of config | Accepted of ast 
 
 
   let accept args =
@@ -268,7 +268,7 @@ module Lr1 (Grammar : GRAMMAR) = struct
       Partial { state_stack; data_stack; tokens }
     with Failure _ -> raise (Parse_error "malformed parse state")
 
-  let interpret = function Shift -> shift | Reduce p -> reduce p
+  let apply = function Shift -> shift | Reduce p -> reduce p
 
   let step ({ tokens; state_stack; data_stack } as s) =
     match (tokens, state_stack) with
@@ -282,7 +282,7 @@ module Lr1 (Grammar : GRAMMAR) = struct
           else 
         let terminal = token_to_terminal tok in
         let action = Action.find state terminal in
-        interpret action s
+        apply action s
 
 
   let rec run = function

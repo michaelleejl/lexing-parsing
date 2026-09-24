@@ -43,7 +43,7 @@ module Generalised (Grammar : GRAMMAR) = struct
 
   type _ Effect.t += Reduce_result : reduction -> unit Effect.t
 
-  let shift_sym_on_items items sym =
+  let goto items sym =
     Item_set.fold
       (fun item acc ->
         match advance item sym with
@@ -56,7 +56,7 @@ module Generalised (Grammar : GRAMMAR) = struct
     | token :: tokens ->
         let terminal = token_to_terminal token in
         let datum = Augmented.read (reader_of_terminal terminal) token in
-        let new_items = shift_sym_on_items items (T terminal) in
+        let new_items = goto items (T terminal) in
         { tokens; datum; items = new_items }
     | _ -> raise (Parse_error "token mismatch")
 
@@ -88,24 +88,29 @@ module Generalised (Grammar : GRAMMAR) = struct
 
   let rec parser ({ items; datum; tokens } as parse_state) =
     let state = closure items in
-    let rec handle_reduce ({ production; dot; args; tokens } as result) alts =
+    let rec unwind ({ production; dot; args; tokens } as reduction) alts =
       let fallback = retry alts in
       if dot > 0 then (
-        collect result;
+        collect reduction;
         fallback ())
-      else if production.lhs <> start then goto production args tokens fallback
+      else if production.lhs <> start then
+        complete production args tokens fallback
       else
         match tokens with
         | [ t ] when t = eof -> accept production args
         | _ -> fallback ()
-    and collect result =
+    and collect reduction =
       perform
         (Reduce_result
-           { result with dot = result.dot - 1; args = datum :: result.args })
-    and goto production args tokens fallback =
+           {
+             reduction with
+             dot = reduction.dot - 1;
+             args = datum :: reduction.args;
+           })
+    and complete production args tokens fallback =
       next
         {
-          items = shift_sym_on_items state (N production.lhs);
+          items = goto state (N production.lhs);
           datum = build (builder_of_production production) args;
           tokens;
         }
@@ -114,7 +119,7 @@ module Generalised (Grammar : GRAMMAR) = struct
       try
         match parser state with
         | v -> v
-        | effect Reduce_result result, k -> handle_reduce result k
+        | effect Reduce_result reduction, k -> unwind reduction k
       with Parse_error _ -> fallback ()
     in
     if Item_set.is_empty state then raise (Parse_error "empty state")
@@ -125,12 +130,12 @@ module Generalised (Grammar : GRAMMAR) = struct
             if s then
               match parser (shift { parse_state with items = state }) with
               | v -> v
-              | effect Reduce_result result, k -> handle_reduce result k
+              | effect Reduce_result reduction, k -> unwind reduction k
             else raise (Parse_error "no more actions")
         | production :: rs ->
             let fallback () = try_act rs s in
             if List.is_empty production.rhs then
-              goto production [] tokens fallback
+              complete production [] tokens fallback
             else (
               collect
                 {
@@ -191,9 +196,9 @@ module Slr1 (Grammar : GRAMMAR) = struct
     tokens : token list;
   }
 
-  type outcome = Partial of reduction | Accepted of ast
+  type result = Partial of reduction | Accepted of ast
 
-  let shift_sym_on_items items sym =
+  let goto items sym =
     Item_set.fold
       (fun item acc ->
         match advance item sym with
@@ -206,7 +211,7 @@ module Slr1 (Grammar : GRAMMAR) = struct
     | token :: tokens ->
         let terminal = token_to_terminal token in
         let datum = Augmented.read (reader_of_terminal terminal) token in
-        let new_items = shift_sym_on_items items (T terminal) in
+        let new_items = goto items (T terminal) in
         { tokens; datum; items = new_items }
     | _ -> raise (Parse_error "token mismatch")
 
@@ -236,34 +241,38 @@ module Slr1 (Grammar : GRAMMAR) = struct
 
   let rec parser ({ items; datum; tokens } as parse_state) =
     let state = closure items in
-    let rec handle_reduce = function
+    let rec unwind = function
       | Accepted e -> Accepted e
-      | Partial ({ production; dot; args; tokens } as result) -> (
-          if dot > 0 then collect result
-          else if production.lhs <> start then goto production args tokens
+      | Partial ({ production; dot; args; tokens } as reduction) -> (
+          if dot > 0 then collect reduction
+          else if production.lhs <> start then complete production args tokens
           else
             match tokens with
             | [ t ] when t = eof -> accept production args
             | _ -> raise (Parse_error "trailing input"))
-    and collect result =
-      Partial { result with dot = result.dot - 1; args = datum :: result.args }
-    and goto production args tokens =
+    and collect reduction =
+      Partial
+        {
+          reduction with
+          dot = reduction.dot - 1;
+          args = datum :: reduction.args;
+        }
+    and complete production args tokens =
       next
         {
-          items = shift_sym_on_items state (N production.lhs);
+          items = goto state (N production.lhs);
           datum = build (builder_of_production production) args;
           tokens;
         }
-    and next state = handle_reduce (parser state) in
+    and next state = unwind (parser state) in
     if Item_set.is_empty state then raise (Parse_error "empty state")
     else
       let act rs s =
         match (rs, s) with
         | [], false -> raise (Parse_error "no actions")
-        | [], true ->
-            handle_reduce (parser (shift { parse_state with items = state }))
+        | [], true -> unwind (parser (shift { parse_state with items = state }))
         | [ production ], false ->
-            if List.is_empty production.rhs then goto production [] tokens
+            if List.is_empty production.rhs then complete production [] tokens
             else
               collect
                 {
@@ -323,9 +332,9 @@ module Lr1 (Grammar : GRAMMAR) = struct
     tokens : token list;
   }
 
-  type outcome = Partial of reduction | Accepted of ast
+  type result = Partial of reduction | Accepted of ast
 
-  let shift_sym_on_items items sym =
+  let goto items sym =
     Item_set.fold
       (fun item acc ->
         match advance item sym with
@@ -338,7 +347,7 @@ module Lr1 (Grammar : GRAMMAR) = struct
     | token :: tokens ->
         let terminal = token_to_terminal token in
         let datum = Augmented.read (reader_of_terminal terminal) token in
-        let new_items = shift_sym_on_items items (T terminal) in
+        let new_items = goto items (T terminal) in
         { tokens; datum; items = new_items }
     | _ -> raise (Parse_error "token mismatch")
 
@@ -368,34 +377,38 @@ module Lr1 (Grammar : GRAMMAR) = struct
 
   let rec parser ({ items; datum; tokens } as parse_state) =
     let state = closure items in
-    let rec handle_reduce = function
+    let rec unwind = function
       | Accepted e -> Accepted e
-      | Partial ({ production; dot; args; tokens } as result) -> (
-          if dot > 0 then collect result
-          else if production.lhs <> start then goto production args tokens
+      | Partial ({ production; dot; args; tokens } as reduction) -> (
+          if dot > 0 then collect reduction
+          else if production.lhs <> start then complete production args tokens
           else
             match tokens with
             | [ t ] when t = eof -> accept production args
             | _ -> raise (Parse_error "trailing input"))
-    and collect result =
-      Partial { result with dot = result.dot - 1; args = datum :: result.args }
-    and goto production args tokens =
+    and collect reduction =
+      Partial
+        {
+          reduction with
+          dot = reduction.dot - 1;
+          args = datum :: reduction.args;
+        }
+    and complete production args tokens =
       next
         {
-          items = shift_sym_on_items state (N production.lhs);
+          items = goto state (N production.lhs);
           datum = build (builder_of_production production) args;
           tokens;
         }
-    and next state = handle_reduce (parser state) in
+    and next state = unwind (parser state) in
     if Item_set.is_empty state then raise (Parse_error "empty state")
     else
       let act rs s =
         match (rs, s) with
         | [], false -> raise (Parse_error "no actions")
-        | [], true ->
-            handle_reduce (parser (shift { parse_state with items = state }))
+        | [], true -> unwind (parser (shift { parse_state with items = state }))
         | [ production ], false ->
-            if List.is_empty production.rhs then goto production [] tokens
+            if List.is_empty production.rhs then complete production [] tokens
             else
               collect
                 {
